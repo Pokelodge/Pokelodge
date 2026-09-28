@@ -281,6 +281,17 @@ select{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radiu
   background:linear-gradient(135deg,#a855f7,#6d28d9);border-color:#fff;
   box-shadow:0 0 10px rgba(168,85,247,.8);
 }
+.dex-gmax-icon-btn{
+  position:absolute;top:.3rem;right:2.1rem;width:26px;height:26px;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;
+  background:rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.4);border-radius:50%;
+  cursor:pointer;transition:transform .15s,background .15s,border-color .15s;z-index:2;
+}
+.dex-gmax-icon-btn:hover{transform:scale(1.12);background:rgba(0,0,0,.5)}
+.dex-gmax-icon-btn.active{
+  background:linear-gradient(135deg,#ef4444,#991b1b);border-color:#fff;
+  box-shadow:0 0 10px rgba(239,68,68,.8);
+}
 .dex-mega-form-nav{
   display:flex;align-items:center;gap:8px;justify-content:center;
   background:rgba(109,40,217,.35);border-radius:8px;padding:3px 8px;margin-top:.3rem;
@@ -358,6 +369,8 @@ select{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radiu
 }
 .dex-row:hover{background:rgba(255,255,255,.06)}
 .dex-row.caught{background:rgba(255,255,255,.05)}
+.dex-row.seen-only{opacity:.65}
+.dex-row.seen-only .dex-row-sprite{filter:grayscale(35%)}
 .dex-row.selected{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.3)}
 .dex-row-arrow{font-size:8px;color:#fff;opacity:0;flex-shrink:0;width:10px}
 .dex-row.selected .dex-row-arrow{opacity:1}
@@ -1178,6 +1191,7 @@ footer a{color:var(--navy);text-decoration:none}
   font-size:9px;color:#222;
 }
 .pi-sprite-card .pi-lv{font-size:8px;color:#444}
+.pi-gmax-badge{display:inline-block;font-size:7px;font-weight:800;color:#fff;background:#d81e2c;border-radius:4px;padding:1px 5px;margin-left:4px;letter-spacing:.5px;vertical-align:middle}
 .pi-evolve-btn{
   display:block;width:100%;margin-top:6px;padding:8px 6px;
   background:linear-gradient(180deg,#ffe066,#ffc830);border:2px solid #b8860b;border-radius:6px;
@@ -1610,6 +1624,48 @@ footer a{color:var(--navy);text-decoration:none}
 .settings-save-btn{background:var(--navy);color:#fff;border:none;padding:10px 24px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
 .settings-save-btn:hover{background:var(--navy-dk)}
 
+/* FRIENDS LIST */
+.friends-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;display:none;align-items:center;justify-content:center;padding:1rem}
+.friends-overlay.show{display:flex}
+.friends-modal{background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden;max-height:88vh;display:flex;flex-direction:column}
+.friends-header{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.4rem;border-bottom:1px solid var(--border);background:var(--navy);color:#fff;font-weight:700;flex-shrink:0}
+.friends-close{cursor:pointer;opacity:.8}
+.friends-close:hover{opacity:1}
+.friends-add-row{display:flex;gap:8px;padding:1rem 1.4rem 0}
+.friends-add-row input{flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px}
+.friends-add-row button{background:var(--gold,#f5a623);color:#1a1a1a;border:none;border-radius:8px;padding:9px 16px;font-weight:700;cursor:pointer}
+.friends-add-row button:hover{filter:brightness(1.05)}
+.friends-add-msg{padding:.4rem 1.4rem 0;font-size:12.5px;min-height:18px}
+.friends-add-msg.error{color:#c0392b}
+.friends-add-msg.ok{color:#2ecc71}
+.friends-list{padding:1rem 1.4rem 1.4rem;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.friends-empty{text-align:center;color:var(--muted);padding:2rem 1rem;font-size:14px}
+.friend-row{display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:10px 12px;cursor:pointer;transition:background .15s}
+.friend-row:hover{background:var(--navy-lt)}
+.friend-row-sprites{display:flex;margin-right:2px}
+.friend-row-sprites img{width:34px;height:34px;object-fit:contain;margin-left:-10px;background:#fff;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.friend-row-sprites img:first-child{margin-left:0}
+.friend-row-info{flex:1;min-width:0}
+.friend-row-name{font-weight:700;font-size:14.5px;color:var(--navy)}
+.friend-row-stats{font-size:11.5px;color:var(--muted)}
+.friend-row-remove{color:#c0392b;font-size:18px;padding:4px 8px;border-radius:6px}
+.friend-row-remove:hover{background:rgba(192,57,43,.1)}
+.friend-card-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1150;display:none;align-items:center;justify-content:center;padding:1rem}
+.friend-card-overlay.show{display:flex}
+.friend-card-modal{background:#fff;border-radius:16px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:1.5rem;position:relative}
+.friend-card-close{position:absolute;top:.9rem;right:1rem;cursor:pointer;font-size:18px;color:var(--muted)}
+.friend-card-name{font-family:'Press Start 2P',monospace;font-size:16px;color:var(--navy);margin-bottom:.2rem}
+.friend-card-sub{font-size:12px;color:var(--muted);margin-bottom:1rem}
+.friend-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1.2rem}
+.friend-card-stat{background:var(--bg);border-radius:10px;padding:10px 6px;text-align:center}
+.friend-card-stat .val{font-size:18px;font-weight:800;color:var(--navy)}
+.friend-card-stat .lbl{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.friend-card-party-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:.4rem}
+.friend-card-party{display:flex;flex-wrap:wrap;gap:8px}
+.friend-card-party-slot{width:56px;text-align:center}
+.friend-card-party-slot img{width:48px;height:48px;object-fit:contain;background:var(--bg);border-radius:10px}
+.friend-card-party-slot .lv{font-size:9px;color:var(--muted);margin-top:2px}
+
 /* BOOT / LOADING SCREEN */
 .boot-overlay{position:fixed;inset:0;z-index:999999;background:#071331;display:flex;align-items:center;justify-content:center;padding:24px;transition:opacity .5s ease;}
 .boot-overlay.boot-hide{opacity:0;pointer-events:none}
@@ -1807,6 +1863,9 @@ footer a{color:var(--navy);text-decoration:none}
   <button class="raid-den-btn" id="raid-den-btn" onclick="openRaidLobby()" title="Dynamax Raid Den">
     🌀<span class="raid-den-exclaim" id="raid-den-exclaim">!</span>
   </button>
+  <button class="shop-nav-btn" onclick="openFriends()" title="Friends List">
+    <i class="ti ti-users"></i>
+  </button>
   <button class="settings-btn" onclick="openSettings()" title="Settings">
     <i class="ti ti-settings"></i>
   </button>
@@ -1818,6 +1877,25 @@ footer a{color:var(--navy);text-decoration:none}
 </div>
 <div class="raid-battle-overlay" id="raid-battle-overlay">
   <div class="raid-battle-modal" id="raid-battle-modal"></div>
+</div>
+
+<!-- FRIENDS LIST -->
+<div class="friends-overlay" id="friends-overlay" onclick="if(event.target===this)closeFriends()">
+  <div class="friends-modal">
+    <div class="friends-header">
+      <span>👥 FRIENDS</span>
+      <span class="friends-close" onclick="closeFriends()">✕</span>
+    </div>
+    <div class="friends-add-row">
+      <input type="text" id="friends-add-input" placeholder="Enter a trainer's username..." onkeydown="if(event.key==='Enter')addFriend()"/>
+      <button onclick="addFriend()">Add</button>
+    </div>
+    <div id="friends-add-msg" class="friends-add-msg"></div>
+    <div id="friends-list" class="friends-list"></div>
+  </div>
+</div>
+<div class="friend-card-overlay" id="friend-card-overlay" onclick="if(event.target===this)closeFriendCard()">
+  <div class="friend-card-modal" id="friend-card-modal"></div>
 </div>
 
 <!-- SETTINGS MODAL -->
@@ -5588,6 +5666,7 @@ var PS_ANI_BACK = 'https://play.pokemonshowdown.com/sprites/ani-back/';
 var PS_ANI_SHINY = 'https://play.pokemonshowdown.com/sprites/ani-shiny/';
 var PS_ANI_BACK_SHINY = 'https://play.pokemonshowdown.com/sprites/ani-back-shiny/';
 var PS_DEX = 'https://play.pokemonshowdown.com/sprites/dex/';
+var PS_DEX_SHINY = 'https://play.pokemonshowdown.com/sprites/dex-shiny/';
 
 function spriteUrl(id, shiny, back){
   var slug = pokeSlug(id);
@@ -5605,16 +5684,22 @@ function gmaxSlug(id){
 }
 function spriteUrlGmax(id, shiny, back){
   var slug = gmaxSlug(id);
+  // The player's own Pokémon is always shown from behind in battle (matching
+  // every other sprite there), so for species that do have a dedicated animated
+  // back-view Gigantamax sprite, use it — rather than always falling back to
+  // front-facing art, which looked backwards/inconsistent with everything else.
   if(back){
     return (shiny ? PS_ANI_BACK_SHINY : PS_ANI_BACK) + slug + '.gif';
   }
-  return (shiny ? PS_ANI_SHINY : PS_ANI) + slug + '.gif';
+  return PS_ANI + slug + '.gif';
 }
-// If the Gigantamax sprite is missing, fall back to the Pokémon's normal sprite chain.
+// If there's no dedicated back-view Gigantamax sprite for this species, fall back
+// to front-facing static dex art (reliably covers the full roster), then finally
+// to the Pokémon's normal sprite chain as a last resort.
 function spriteOnerrorGmax(id, shiny, back){
-  var normalSrc = spriteUrl(id, shiny, back);
+  var staticSrc = PS_DEX + gmaxSlug(id) + '.png';
   var restChain = spriteOnerror(id, shiny);
-  return "this.onerror=function(){"+restChain+"};this.src=&quot;"+normalSrc+"&quot;";
+  return "this.onerror=function(){"+restChain+"};this.src=&quot;"+staticSrc+"&quot;";
 }
 
 function fallbackUrl(id, shiny){
@@ -7583,6 +7668,9 @@ function statColor(v){return v>=120?"#2ECC71":v>=90?"#F39C12":v>=60?"#E67E22":"#
 /* ===== GAME STATE ===== */
 let caught=[];   // [{id,name,shiny,legendary,xp,uid,ts}]
 let party=[];    // indices into caught[]
+var dexSeen = {}; // {speciesId: true} — every species ever caught, INCLUDING ones since evolved
+                   // away from (e.g. Bulbasaur stays checked off even after it becomes Ivysaur)
+var friends = [];  // usernames of other local trainers (accounts on this same browser) you've added
 let dexFilter='all';
 let pcTab='all';
 let pcBoxNum=0; // current box index (0-based), 20 Pokémon per box
@@ -7597,10 +7685,13 @@ var inventory   = {};      // {itemId: quantity}
 
 function save(){
   try{
+    // Keep the "ever caught" Pokédex registry in sync with what's currently owned
+    // (species evolved away from stay checked off since dexSeen only ever grows).
+    caught.forEach(function(p){ dexSeen[p.id] = true; });
     var key = currentUser ? getUserSaveKey(currentUser) : 'pgcc_poke2_guest';
     localStorage.setItem(key, JSON.stringify({
       caught:caught, party:party,
-      pokedollars:pokedollars, inventory:inventory
+      pokedollars:pokedollars, inventory:inventory, dexSeen:dexSeen, friends:friends
     }));
   }catch(e){}
 }
@@ -7976,7 +8067,7 @@ function startRaidBattle(){
   // boss with a massively inflated HP pool.
   var pMaxHp = calcHp(pStats[0], pLvl) * 3;
 
-  // Each ally becomes a real combatant with its own HP bar and stats.
+  // Each ally becomes a real combatant with its own HP bar, stats, and moveset.
   var allies = (raidState.bots||[]).map(function(b){
     var aStats = getStats(b.pokeId);
     var aLvl = raidState.level;
@@ -7986,6 +8077,7 @@ function startRaidBattle(){
       hp: aMax, maxHp: aMax,
       atk: aStats[1], def: aStats[2],
       types: (POKE_TYPES[b.pokeId]||'Normal').split('/'),
+      moves: getMovesAtLevel(b.pokeId, aLvl),
     };
   });
 
@@ -8048,7 +8140,7 @@ function renderRaidBattle(){
   var maxSprCls = bs.maxTurnsLeft > 0 ? (bs.isGmax ? ' gmaxed' : ' maxed') : '';
   var isGmaxActive = bs.maxTurnsLeft > 0 && bs.isGmax; // true only while G-Max'd (lasts 3 turns)
   var playerSprSrc = isGmaxActive
-    ? spriteUrlGmax(p.id, p.shiny||false, true)   // Gigantamax back sprite, facing the boss
+    ? spriteUrlGmax(p.id, p.shiny||false, true)   // Gigantamax static art (front-view render, no back-view exists)
     : spriteUrl(p.id, p.shiny||false, true);      // normal back sprite, facing the boss
   var playerSprOnerror = isGmaxActive
     ? spriteOnerrorGmax(p.id, p.shiny||false, true)
@@ -8170,14 +8262,21 @@ function raidPlayerMove(moveIdx){
 // The 3 bot allies each attack the boss (only ones still standing).
 function raidBattleAllyTurns(cb){
   var bs = raidBattleState;
-  var bossDef = getStats(raidState.pokeId)[2];
+  var bossDef = getStats(raidState.pokeId)[2] * (bs.bossDefMult||1);
   var defTypes = (POKE_TYPES[raidState.pokeId]||'Normal').split('/');
   bs.allies.forEach(function(a){
     if(bs.bossHp <= 0 || a.hp <= 0) return;
-    var aType = a.types[0] || 'Normal';
-    var r = raidSimpleDamage(a.lvl, a.atk, bossDef, 55, aType, defTypes);
+    // Pick a random damaging move from the ally's real moveset (status moves,
+    // power 0, are skipped since the ally only ever attacks the boss).
+    var pool = (a.moves||[]).filter(function(m){ return getMovePower(m) > 0; });
+    var move = pool.length ? pool[Math.floor(Math.random()*pool.length)] : 'Tackle';
+    var moveType = MOVE_TYPES[move] || 'Normal';
+    var power = getMovePower(move) || 40;
+    var r = raidSimpleDamage(a.lvl, a.atk, bossDef, power, moveType, defTypes);
     bs.bossHp = Math.max(0, bs.bossHp - r.dmg);
-    raidBattleLog(a.name+"'s "+POKE_NAMES[a.pokeId]+' attacked! (-'+r.dmg+' HP)');
+    var effLabel = getEffectivenessLabel(r.mult);
+    var effText = effLabel.label ? effLabel.label+' ' : '';
+    raidBattleLog(a.name+"'s "+POKE_NAMES[a.pokeId]+' used '+move+'! '+effText+'(-'+r.dmg+' HP)');
   });
   renderRaidBattle();
   setTimeout(cb, 600);
@@ -8506,6 +8605,145 @@ function loadSavedTheme(){
   applyTheme(activeTheme);
 }
 
+/* ══════════════════ FRIENDS LIST ══════════════════ */
+// Reads another local account's save data WITHOUT touching the current
+// session's global state (unlike loadUserData, which is only safe to call
+// for the person who's actually logged in).
+function getUserSaveSnapshot(username){
+  try{
+    var raw = localStorage.getItem(getUserSaveKey(username));
+    if(!raw) return null;
+    var s = JSON.parse(raw);
+    var snapCaught = s.caught || [];
+    var seenSet = {};
+    Object.keys(s.dexSeen||{}).forEach(function(k){ seenSet[k]=true; });
+    snapCaught.forEach(function(p){ seenSet[p.id]=true; });
+    return {
+      caught: snapCaught,
+      party: s.party || [],
+      pokedollars: s.pokedollars || 0,
+      uniqueCount: Object.keys(seenSet).length,
+      shinyCount: snapCaught.filter(function(p){return p.shiny;}).length,
+      legendCount: snapCaught.filter(function(p){return p.legendary;}).length,
+    };
+  }catch(e){ return null; }
+}
+
+function openFriends(){
+  document.getElementById('friends-add-input').value = '';
+  document.getElementById('friends-add-msg').textContent = '';
+  renderFriends();
+  document.getElementById('friends-overlay').classList.add('show');
+}
+function closeFriends(){
+  document.getElementById('friends-overlay').classList.remove('show');
+}
+
+function addFriend(){
+  var input = document.getElementById('friends-add-input');
+  var msg = document.getElementById('friends-add-msg');
+  var name = (input.value||'').trim();
+  msg.className = 'friends-add-msg';
+  if(!name){ return; }
+  var allUsers = getUsers();
+  // Usernames are matched case-insensitively against every account that's
+  // ever signed in on this browser (this is a local-device friends list,
+  // not an internet-wide one, since the game has no server backend).
+  var matchKey = Object.keys(allUsers).filter(function(u){ return u.toLowerCase() === name.toLowerCase(); })[0];
+  if(!matchKey){
+    msg.textContent = 'No trainer named "'+name+'" found on this device.';
+    msg.className = 'friends-add-msg error';
+    return;
+  }
+  if(currentUser && matchKey.toLowerCase() === currentUser.toLowerCase()){
+    msg.textContent = "You can't add yourself as a friend!";
+    msg.className = 'friends-add-msg error';
+    return;
+  }
+  if(friends.some(function(f){ return f.toLowerCase() === matchKey.toLowerCase(); })){
+    msg.textContent = matchKey+' is already on your friends list.';
+    msg.className = 'friends-add-msg error';
+    return;
+  }
+  friends.push(matchKey);
+  save();
+  input.value = '';
+  msg.textContent = 'Added '+matchKey+' as a friend!';
+  msg.className = 'friends-add-msg ok';
+  renderFriends();
+}
+
+function removeFriend(username, ev){
+  if(ev) ev.stopPropagation();
+  friends = friends.filter(function(f){ return f !== username; });
+  save();
+  renderFriends();
+}
+
+function renderFriends(){
+  var list = document.getElementById('friends-list');
+  if(!friends.length){
+    list.innerHTML = '<div class="friends-empty">No friends yet — add a trainer\'s<br/>username above to see their collection.</div>';
+    return;
+  }
+  list.innerHTML = friends.map(function(username){
+    var snap = getUserSaveSnapshot(username);
+    if(!snap){
+      return '<div class="friend-row" onclick="removeFriend(\''+username+'\')">'+
+        '<div class="friend-row-info"><div class="friend-row-name">'+username+'</div>'+
+        '<div class="friend-row-stats">No save data found (click to remove)</div></div></div>';
+    }
+    var previewIds = (snap.party.length ? snap.party : snap.caught.map(function(_,i){return i;})).slice(0,3)
+      .map(function(idx){ return snap.caught[idx]; }).filter(Boolean);
+    var spritesHtml = previewIds.map(function(p){
+      return '<img src="'+spriteUrl(p.id,p.shiny)+'" onerror="'+spriteOnerror(p.id,p.shiny)+'"/>';
+    }).join('');
+    return '<div class="friend-row" onclick="openFriendCard(\''+username+'\')">'+
+      '<div class="friend-row-sprites">'+spritesHtml+'</div>'+
+      '<div class="friend-row-info">'+
+        '<div class="friend-row-name">'+username+'</div>'+
+        '<div class="friend-row-stats">'+snap.uniqueCount+' seen · '+snap.caught.length+' caught · '+snap.shinyCount+' ✨</div>'+
+      '</div>'+
+      '<div class="friend-row-remove" onclick="removeFriend(\''+username+'\',event)" title="Remove friend">✕</div>'+
+    '</div>';
+  }).join('');
+}
+
+function openFriendCard(username){
+  var snap = getUserSaveSnapshot(username);
+  var modal = document.getElementById('friend-card-modal');
+  if(!snap){
+    modal.innerHTML = '<span class="friend-card-close" onclick="closeFriendCard()">✕</span>'+
+      '<div class="friend-card-name">'+username.toUpperCase()+'</div>'+
+      '<div class="friend-card-sub">No save data found for this trainer.</div>';
+  } else {
+    var partySlots = (snap.party.length ? snap.party : snap.caught.map(function(_,i){return i;})).slice(0,6)
+      .map(function(idx){ return snap.caught[idx]; }).filter(Boolean);
+    var partyHtml = partySlots.map(function(p){
+      var lvl = levelFromXp(p.xp||0).level;
+      return '<div class="friend-card-party-slot">'+
+        '<img src="'+spriteUrl(p.id,p.shiny)+'" onerror="'+spriteOnerror(p.id,p.shiny)+'"/>'+
+        '<div class="lv">'+(p.name||POKE_NAMES[p.id]||'???')+' Lv'+lvl+'</div>'+
+      '</div>';
+    }).join('');
+    modal.innerHTML =
+      '<span class="friend-card-close" onclick="closeFriendCard()">✕</span>'+
+      '<div class="friend-card-name">'+username.toUpperCase()+'</div>'+
+      '<div class="friend-card-sub">Trainer on this device</div>'+
+      '<div class="friend-card-stats">'+
+        '<div class="friend-card-stat"><div class="val">'+snap.uniqueCount+'</div><div class="lbl">Seen</div></div>'+
+        '<div class="friend-card-stat"><div class="val">'+snap.shinyCount+'</div><div class="lbl">Shiny</div></div>'+
+        '<div class="friend-card-stat"><div class="val">'+snap.legendCount+'</div><div class="lbl">Legendary</div></div>'+
+      '</div>'+
+      '<div class="friend-card-party-label">Party</div>'+
+      '<div class="friend-card-party">'+(partyHtml || '<span style="font-size:12px;color:var(--muted)">No Pokémon yet</span>')+'</div>';
+  }
+  document.getElementById('friend-card-overlay').classList.add('show');
+}
+function closeFriendCard(){
+  document.getElementById('friend-card-overlay').classList.remove('show');
+}
+
 function openSettings(){
   try{
     // Load saved region + theme
@@ -8632,7 +8870,11 @@ function closeDex(){document.getElementById('dex-sidebar').classList.remove('ope
 function filterDex(f,btn){dexFilter=f;document.querySelectorAll('.dex-filter-btn').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');renderDex();}
 
 function refreshDexStats(){
-  var t=caught.length,s=caught.filter(function(p){return p.shiny;}).length,l=caught.filter(function(p){return p.legendary;}).length,u=new Set(caught.map(function(p){return p.id;})).size;
+  var t=caught.length,s=caught.filter(function(p){return p.shiny;}).length,l=caught.filter(function(p){return p.legendary;}).length;
+  // "Unique" reflects every species ever collected (dexSeen), not just currently-owned ones,
+  // so it stays accurate even after a Pokémon has evolved away from an earlier form.
+  var seenSet = {}; Object.keys(dexSeen).forEach(function(k){seenSet[k]=true;}); caught.forEach(function(p){seenSet[p.id]=true;});
+  var u = Object.keys(seenSet).length;
   document.getElementById('dex-count').textContent=t;
   document.getElementById('stat-caught').textContent=t;
   document.getElementById('stat-shiny').textContent=s;
@@ -8681,6 +8923,18 @@ function renderDex(){
           '<span class="dex-row-name">'+name+'</span>'+
           (badge?'<span class="dex-row-badge">'+badge+'</span>':'')+
         '</div>';
+    } else if(dexSeen[n] && (dexFilter==='all')){
+      // Seen but not currently owned (e.g. evolved away from) — still shown as "collected",
+      // just without a live caughtIdx to select a specific individual.
+      var seenName = (POKE_NAMES[n] || '???').toUpperCase();
+      var isSelSeen = dexSelectedEntry === ('seen:'+n);
+      rows +=
+        '<div class="dex-row caught seen-only'+(isSelSeen?' selected':'')+'" onclick="selectDexEntry(\'seen:'+n+'\')">'+
+          '<span class="dex-row-arrow">▶</span>'+
+          '<span class="dex-row-num">'+numStr+'</span>'+
+          '<img class="dex-row-sprite" src="'+spriteUrl(n,false)+'" alt="'+seenName+'" onerror="'+spriteOnerror(n,false)+'"/>'+
+          '<span class="dex-row-name">'+seenName+'</span>'+
+        '</div>';
     } else {
       // Uncaught entry — show only if there's at least one known Pokémon with this number,
       // and it's within Kanto range or beyond range of any caught species, to keep the list reasonable
@@ -8712,6 +8966,7 @@ function selectDexEntry(caughtIdx){
   dexViewMode = 'info'; // reset to info view on every new selection
   dexShowMega = false;  // reset Mega preview on every new selection
   dexMegaIdx = 0;
+  dexShowGmax = false;  // reset Gigantamax preview on every new selection
   renderDex();
   renderDexPreview(caughtIdx);
 }
@@ -8720,6 +8975,7 @@ var dexFormIdx = 0;   // which form variant is currently shown (0 = base/default
 var dexViewMode = 'info'; // 'info' or 'stats'
 var dexShowMega = false;  // whether the Mega Evolution form is currently being previewed
 var dexMegaIdx = 0;       // which Mega form, for species with more than one (Charizard X/Y, etc.)
+var dexShowGmax = false;  // whether the Gigantamax form is currently being previewed
 
 // Reverse lookup: base Pokémon dex id -> array of {key, data} Mega forms it has.
 var _MEGA_BY_BASE = null;
@@ -8737,6 +8993,13 @@ function getMegaFormsForBase(baseId){
 
 function toggleDexMega(caughtIdx){
   dexShowMega = !dexShowMega;
+  if(dexShowMega) dexShowGmax = false; // only one alt-form preview active at a time
+  renderDexPreview(caughtIdx);
+}
+
+function toggleDexGmax(caughtIdx){
+  dexShowGmax = !dexShowGmax;
+  if(dexShowGmax) dexShowMega = false; // only one alt-form preview active at a time
   renderDexPreview(caughtIdx);
 }
 
@@ -8749,16 +9012,40 @@ function cycleDexMegaForm(dir, caughtIdx){
   renderDexPreview(caughtIdx);
 }
 
+// Builds a {src, onerrHtml} pair that tries several candidate sprite URLs in
+// order (e.g. animated art first, then static dex art) before finally giving
+// up and falling back to the Pokémon's normal, reliable sprite chain. Used for
+// alt-form previews (Mega/Gigantamax) where art availability is inconsistent.
+function multiSpriteAttrs(candidates, fallbackId, fallbackShiny){
+  candidates = candidates.filter(Boolean);
+  if(!candidates.length){
+    return { src: spriteUrl(fallbackId, fallbackShiny), onerrHtml: spriteOnerror(fallbackId, fallbackShiny) };
+  }
+  var rest = candidates.slice(1);
+  var chain = spriteOnerror(fallbackId, fallbackShiny);
+  for(var i=rest.length-1; i>=0; i--){
+    chain = "this.onerror=function(){"+chain+"};this.src=&quot;"+rest[i]+"&quot;";
+  }
+  return { src: candidates[0], onerrHtml: chain };
+}
+
 function renderDexPreview(caughtIdx){
   var pane = document.getElementById('dex-preview-pane');
   if(!pane) return;
-  var p = (caughtIdx !== null && caughtIdx !== undefined) ? caught[caughtIdx] : null;
+
+  // "seen:ID" is a pseudo-index for a species that's been owned before but isn't
+  // currently in the party/PC (e.g. evolved away from) — build a read-only stand-in.
+  var isSeenOnly = (typeof caughtIdx === 'string' && caughtIdx.indexOf('seen:') === 0);
+  var seenId = isSeenOnly ? parseInt(caughtIdx.slice(5), 10) : null;
+  var p = isSeenOnly
+    ? { id: seenId, name: POKE_NAMES[seenId] || '???', xp: 0, shiny: false, legendary: false }
+    : ((caughtIdx !== null && caughtIdx !== undefined) ? caught[caughtIdx] : null);
   if(!p){
     pane.innerHTML = '<div class="dex-preview-empty">Select an entry<br/>to view it here</div>';
     return;
   }
 
-  var forms = getFormsFor(p.id);
+  var forms = isSeenOnly ? null : getFormsFor(p.id);
   var formCount = forms ? forms.forms.length : 1;
   if(dexFormIdx >= formCount) dexFormIdx = 0;
   var activeForm = forms ? forms.forms[dexFormIdx] : null;
@@ -8768,28 +9055,57 @@ function renderDexPreview(caughtIdx){
   var types = (POKE_TYPES[p.id]||'Normal').split('/');
 
   // Mega Evolution preview — takes priority over regular alt-forms while active
-  var megaForms = getMegaFormsForBase(p.id);
+  // (never offered for a read-only "seen but not owned" entry)
+  var megaForms = isSeenOnly ? [] : getMegaFormsForBase(p.id);
   if(dexMegaIdx >= megaForms.length) dexMegaIdx = 0;
   var activeMega = (dexShowMega && megaForms.length) ? megaForms[dexMegaIdx].data : null;
 
-  var displayName = activeMega ? activeMega.name : p.name;
-  var displayTypes = activeMega ? activeMega.types.split('/') : types;
+  // Gigantamax preview — a handful of species (Venusaur, Charizard, Blastoise,
+  // Gengar) can both Mega Evolve AND Gigantamax, so dexShowMega/dexShowGmax are
+  // kept as independent toggles (see toggleDexMega/toggleDexGmax) rather than
+  // assuming they're mutually exclusive by species. Unlike Mega, G-Max never
+  // changes typing, ability, or stats — only appearance — so those stay untouched.
+  var canGmax = !isSeenOnly && canGigantamax(p.id);
+  var activeGmax = !!(dexShowGmax && canGmax);
+
+  // JS-safe literal for embedding in onclick="..." strings below — a plain
+  // number for a real caughtIdx, or a quoted 'seen:ID' string literal.
+  var idxLit = isSeenOnly ? ("'"+caughtIdx+"'") : caughtIdx;
+
+  var displayName = activeMega ? activeMega.name : (activeGmax ? ('Gigantamax '+p.name) : p.name);
+  var displayTypes = activeMega ? (activeMega.types || POKE_TYPES[activeMega.baseId] || 'Normal').split('/') : types;
   var statsId = activeMega ? activeMega.virtualId : p.id;
   var typeBadges = displayTypes.map(function(t){
     return '<span class="dex-type-badge" style="background:'+tc(t)+'">'+t.toUpperCase()+'</span>';
   }).join('');
 
-  // Sprite: Mega preview tries its dedicated art first, falling back through
-  // the same robust chain used everywhere else (base-form sprite → PS static
-  // → PokeAPI 2D → official art), since not every Mega form has art yet.
-  var spriteSrc = activeMega
-    ? (activeMega.slug ? (PS_ANI + activeMega.slug + '.gif') : spriteUrl(activeMega.baseId, p.shiny))
-    : spriteUrl(spriteId, p.shiny);
-  var spriteErr = activeMega ? spriteOnerror(activeMega.baseId, p.shiny) : spriteOnerror(p.id, p.shiny);
+  // Sprite: alt-form art availability on the sprite CDN is inconsistent (not
+  // every Mega/G-Max form has animated art, and some only have static "dex" art
+  // or none at all), so try animated art, then static dex art, then finally
+  // fall all the way back to the Pokémon's normal, always-reliable sprite chain.
+  var spriteAttrs;
+  if(activeMega){
+    var megaCandidates = activeMega.slug
+      ? [PS_ANI + activeMega.slug + '.gif', PS_DEX + activeMega.slug + '.png']
+      : [];
+    spriteAttrs = multiSpriteAttrs(megaCandidates, activeMega.baseId, p.shiny);
+  } else if(activeGmax){
+    var gSlug = gmaxSlug(p.id);
+    spriteAttrs = multiSpriteAttrs([PS_ANI + gSlug + '.gif', PS_DEX + gSlug + '.png'], p.id, p.shiny);
+  } else {
+    spriteAttrs = { src: spriteUrl(spriteId, p.shiny), onerrHtml: spriteOnerror(p.id, p.shiny) };
+  }
+  var spriteSrc = spriteAttrs.src;
+  var spriteErr = spriteAttrs.onerrHtml;
 
   // Mega icon — only shown if this species has at least one Mega Stone
   var megaIconBtn = megaForms.length
-    ? '<div class="dex-mega-icon-btn'+(dexShowMega?' active':'')+'" onclick="toggleDexMega('+caughtIdx+')" title="'+(dexShowMega?'Back to normal form':'Preview Mega Evolution')+'">💎</div>'
+    ? '<div class="dex-mega-icon-btn'+(dexShowMega?' active':'')+'" onclick="toggleDexMega('+idxLit+')" title="'+(dexShowMega?'Back to normal form':'Preview Mega Evolution')+'">💎</div>'
+    : '';
+  // Gigantamax icon — only shown for species that can Gigantamax. Positioned
+  // to the left of the Mega icon when both are present on the same species.
+  var gmaxIconBtn = canGmax
+    ? '<div class="dex-gmax-icon-btn'+(activeGmax?' active':'')+'" onclick="toggleDexGmax('+idxLit+')" title="'+(activeGmax?'Back to normal form':'Preview Gigantamax form')+'">✖</div>'
     : '';
 
   // Form-cycling arrows — only shown when this Pokémon actually has multiple forms
@@ -8797,9 +9113,9 @@ function renderDexPreview(caughtIdx){
   if(activeMega && megaForms.length > 1){
     formNav =
       '<div class="dex-mega-form-nav">'+
-        '<span class="dex-form-arrow" onclick="cycleDexMegaForm(-1,'+caughtIdx+')">◀</span>'+
+        '<span class="dex-form-arrow" onclick="cycleDexMegaForm(-1,'+idxLit+')">◀</span>'+
         '<span class="dex-form-label">'+activeMega.name+'</span>'+
-        '<span class="dex-form-arrow" onclick="cycleDexMegaForm(1,'+caughtIdx+')">▶</span>'+
+        '<span class="dex-form-arrow" onclick="cycleDexMegaForm(1,'+idxLit+')">▶</span>'+
       '</div>';
   } else if(!activeMega && forms && formCount > 1){
     formNav =
@@ -8827,23 +9143,27 @@ function renderDexPreview(caughtIdx){
   pane.innerHTML =
     '<div class="dex-preview-sprite-wrap" style="position:relative">'+
       megaIconBtn+
+      gmaxIconBtn+
       '<img src="'+spriteSrc+'" alt="'+displayName+'" onerror="'+spriteErr+'"/>'+
     '</div>'+
     (activeMega ? '<div class="dex-mega-banner">✨ MEGA EVOLUTION PREVIEW</div>' : '')+
     formNav+
     '<div class="dex-preview-name">'+displayName.toUpperCase()+(p.shiny?' ✨':'')+'</div>'+
-    '<div class="dex-preview-num">№'+String(p.id).padStart(3,'0')+' · Lv.'+lvl+'</div>'+
+    '<div class="dex-preview-num">№'+String(p.id).padStart(3,'0')+(isSeenOnly?'':' · Lv.'+lvl)+'</div>'+
     '<div class="dex-type-row">'+typeBadges+'</div>'+
     bodyHtml+
-    '<button class="dex-preview-info-btn" onclick="openPC();selectPcPoke('+caughtIdx+');closeDex()">Enter: INFO</button>'+
+    (isSeenOnly
+      ? '<div class="dex-preview-flavor" style="opacity:.6;font-style:italic">Not currently in your party or PC.</div>'
+      : '<button class="dex-preview-info-btn" onclick="openPC();selectPcPoke('+caughtIdx+');closeDex()">Enter: INFO</button>')+
     '<div class="dex-view-nav">'+
-      '<span class="dex-view-arrow" onclick="cycleDexView(-1,'+caughtIdx+')">◀</span>'+
+      '<span class="dex-view-arrow" onclick="cycleDexView(-1,'+idxLit+')">◀</span>'+
       '<span class="dex-view-label">'+viewLabels[dexViewMode]+'</span>'+
-      '<span class="dex-view-arrow" onclick="cycleDexView(1,'+caughtIdx+')">▶</span>'+
+      '<span class="dex-view-arrow" onclick="cycleDexView(1,'+idxLit+')">▶</span>'+
     '</div>';
 }
 
 function cycleDexForm(dir){
+  if(typeof dexSelectedEntry === 'string') return; // no alt-forms shown for read-only "seen" entries
   var p = caught[dexSelectedEntry];
   if(!p) return;
   var forms = getFormsFor(p.id);
@@ -9001,6 +9321,7 @@ function evolvePartyPokemon(caughtIdx){
   var evo = getEvolutionEligibility(p);
   if(!evo) return;
   var oldName = p.name;
+  dexSeen[p.id] = true; // keep the pre-evolution species checked off in the Pokédex forever
   p.id = evo.evolvesTo;
   p.name = POKE_NAMES[p.id] || p.name;
   save();
@@ -9047,9 +9368,14 @@ function renderPokeInfoPages(){
     return '<span class="pi-type-badge" style="background:'+tc(t)+'">'+t.toUpperCase()+'</span>';
   }).join(' ');
   var megaBadge = megaEntry ? ' <span style="font-size:6px;color:#8e44ad">✨ MEGA EVOLVED</span>' : '';
+  // Red "X" badge — the Gigantamax Factor marker used in-game to show a Pokémon
+  // can Gigantamax (as opposed to only Dynamax) once sent into a raid battle.
+  var gmaxBadge = (pReal.gmaxFactor && canGigantamax(pReal.id))
+    ? ' <span class="pi-gmax-badge" title="Has the Gigantamax Factor">✖ GMAX</span>'
+    : '';
   var spriteCorner =
     '<div class="pi-sprite-corner">'+
-      '<div class="pi-sprite-card">'+p.name.toUpperCase()+(p.shiny?' ✨':'')+'<div class="pi-lv">Lv'+lvl+'</div></div>'+
+      '<div class="pi-sprite-card">'+p.name.toUpperCase()+(p.shiny?' ✨':'')+gmaxBadge+'<div class="pi-lv">Lv'+lvl+'</div></div>'+
       (megaEntry
         ? '<img class="pi-sprite-img" src="" alt="'+p.name+'"/>'
         : '<img class="pi-sprite-img" src="'+spriteUrl(p.id,p.shiny)+'" alt="'+p.name+'" onerror="'+spriteOnerror(p.id,p.shiny)+'"/>')+
@@ -9066,7 +9392,7 @@ function renderPokeInfoPages(){
   // beneath the sprite image; pages 1–2 reuse the plain version.
   var spriteCornerPage0 =
     '<div class="pi-sprite-corner">'+
-      '<div class="pi-sprite-card">'+p.name.toUpperCase()+(p.shiny?' ✨':'')+'<div class="pi-lv">Lv'+lvl+'</div></div>'+
+      '<div class="pi-sprite-card">'+p.name.toUpperCase()+(p.shiny?' ✨':'')+gmaxBadge+'<div class="pi-lv">Lv'+lvl+'</div></div>'+
       (megaEntry
         ? '<img class="pi-sprite-img" src="" alt="'+p.name+'"/>'
         : '<img class="pi-sprite-img" src="'+spriteUrl(p.id,p.shiny)+'" alt="'+p.name+'" onerror="'+spriteOnerror(p.id,p.shiny)+'"/>')+
@@ -9078,7 +9404,7 @@ function renderPokeInfoPages(){
     '<div class="pi-page active" id="pi-page-0">'+
       spriteCornerPage0+
       '<div class="pi-row"><span class="pi-row-label">No</span><span class="pi-row-val">'+String(pReal.id).padStart(4,'0')+'</span></div>'+
-      '<div class="pi-row"><span class="pi-row-label">NAME</span><span class="pi-row-val">'+p.name.toUpperCase()+megaBadge+'</span></div>'+
+      '<div class="pi-row"><span class="pi-row-label">NAME</span><span class="pi-row-val">'+p.name.toUpperCase()+megaBadge+gmaxBadge+'</span></div>'+
       '<div class="pi-row"><span class="pi-row-label">TYPE</span><span class="pi-row-val">'+typeBadges+'</span></div>'+
       '<div class="pi-row"><span class="pi-row-label">OT</span><span class="pi-row-val blue">'+getPokeOT(p)+'</span></div>'+
       '<div class="pi-row"><span class="pi-row-label">IDNo</span><span class="pi-row-val">'+getPokeIDNo(p)+'</span></div>'+
@@ -9385,8 +9711,8 @@ var MEGA_DATA = {
   aerodactylite: {virtualId:90004, baseId:142, name:"Mega Aerodactyl", slug:"aerodactyl-mega", ability:"Tough Claws"},
   aggronite: {virtualId:90005, baseId:306, name:"Mega Aggron", slug:"aggron-mega", ability:"Filter"},
   alakazite: {virtualId:90006, baseId:65, name:"Mega Alakazam", slug:"alakazam-mega", ability:"Trace"},
-  altarianite: {virtualId:90007, baseId:334, name:"Mega Altaria", slug:"altaria-mega", ability:"Pixilate"},
-  ampharosite: {virtualId:90008, baseId:181, name:"Mega Ampharos", slug:"ampharos-mega", ability:"Mold Breaker"},
+  altarianite: {virtualId:90007, baseId:334, name:"Mega Altaria", slug:"altaria-mega", ability:"Pixilate", types:"Dragon/Fairy"},
+  ampharosite: {virtualId:90008, baseId:181, name:"Mega Ampharos", slug:"ampharos-mega", ability:"Mold Breaker", types:"Electric/Dragon"},
   audinite: {virtualId:90009, baseId:531, name:"Mega Audino", slug:"audino-mega", ability:"Healer"},
   banettite: {virtualId:90010, baseId:354, name:"Mega Banette", slug:"banette-mega", ability:"Prankster"},
   barbaracite: {virtualId:90011, baseId:939, name:"Mega Bellibolt", slug:null, ability:null},
@@ -9396,7 +9722,7 @@ var MEGA_DATA = {
   blazikenite: {virtualId:90015, baseId:257, name:"Mega Blaziken", slug:"blaziken-mega", ability:"Speed Boost"},
   cameruptite: {virtualId:90016, baseId:323, name:"Mega Camerupt", slug:"camerupt-mega", ability:"Sheer Force"},
   chandelurite: {virtualId:90017, baseId:609, name:"Mega Chandelure", slug:null, ability:null},
-  charizardite_x: {virtualId:90018, baseId:6, name:"Mega Charizard X", slug:"charizard-megax", ability:"Tough Claws"},
+  charizardite_x: {virtualId:90018, baseId:6, name:"Mega Charizard X", slug:"charizard-megax", ability:"Tough Claws", types:"Fire/Dragon"},
   charizardite_y: {virtualId:90019, baseId:6, name:"Mega Charizard Y", slug:"charizard-megay", ability:"Drought"},
   chesnaughtite: {virtualId:90020, baseId:652, name:"Mega Chesnaught", slug:null, ability:null},
   chimechite: {virtualId:90021, baseId:358, name:"Mega Chimecho", slug:null, ability:null},
@@ -9425,7 +9751,7 @@ var MEGA_DATA = {
   golisopite: {virtualId:90044, baseId:768, name:"Mega Golisopod", slug:null, ability:null},
   golurkite: {virtualId:90045, baseId:623, name:"Mega Golurk", slug:null, ability:null},
   greninjite: {virtualId:90046, baseId:658, name:"Mega Greninja", slug:null, ability:null},
-  gyaradosite: {virtualId:90047, baseId:130, name:"Mega Gyarados", slug:"gyarados-mega", ability:"Mold Breaker"},
+  gyaradosite: {virtualId:90047, baseId:130, name:"Mega Gyarados", slug:"gyarados-mega", ability:"Mold Breaker", types:"Water/Dark"},
   hawluchanite: {virtualId:90048, baseId:701, name:"Mega Hawlucha", slug:null, ability:null},
   heatranite: {virtualId:90049, baseId:485, name:"Mega Heatran", slug:null, ability:null},
   heracronite: {virtualId:90050, baseId:214, name:"Mega Heracross", slug:"heracross-mega", ability:"Skill Link"},
@@ -9433,7 +9759,7 @@ var MEGA_DATA = {
   kangaskhanite: {virtualId:90052, baseId:115, name:"Mega Kangaskhan", slug:"kangaskhan-mega", ability:"Parental Bond"},
   latiasite: {virtualId:90053, baseId:380, name:"Mega Latias", slug:"latias-mega", ability:"Levitate"},
   latiosite: {virtualId:90054, baseId:381, name:"Mega Latios", slug:"latios-mega", ability:"Levitate"},
-  lopunnite: {virtualId:90055, baseId:428, name:"Mega Lopunny", slug:"lopunny-mega", ability:"Scrappy"},
+  lopunnite: {virtualId:90055, baseId:428, name:"Mega Lopunny", slug:"lopunny-mega", ability:"Scrappy", types:"Normal/Fighting"},
   lucarionite: {virtualId:90056, baseId:448, name:"Mega Lucario", slug:"lucario-mega", ability:"Adaptability"},
   lucarionite_z: {virtualId:90057, baseId:448, name:"Mega Lucario Z", slug:null, ability:null},
   magearnite: {virtualId:90058, baseId:801, name:"Mega Magearna", slug:null, ability:null},
@@ -9447,13 +9773,13 @@ var MEGA_DATA = {
   mewtwonite_x: {virtualId:90066, baseId:150, name:"Mega Mewtwo X", slug:"mewtwo-megax", ability:"Steadfast"},
   mewtwonite_y: {virtualId:90067, baseId:150, name:"Mega Mewtwo Y", slug:"mewtwo-megay", ability:"Insomnia"},
   pidgeotite: {virtualId:90068, baseId:18, name:"Mega Pidgeot", slug:"pidgeot-mega", ability:"No Guard"},
-  pinsirite: {virtualId:90069, baseId:127, name:"Mega Pinsir", slug:"pinsir-mega", ability:"Aerilate"},
+  pinsirite: {virtualId:90069, baseId:127, name:"Mega Pinsir", slug:"pinsir-mega", ability:"Aerilate", types:"Bug/Flying"},
   pyroarite: {virtualId:90070, baseId:668, name:"Mega Pyroar", slug:null, ability:null},
   raichunite_x: {virtualId:90071, baseId:26, name:"Mega Raichu X", slug:null, ability:null},
   raichunite_y: {virtualId:90072, baseId:26, name:"Mega Raichu Y", slug:null, ability:null},
   sablenite: {virtualId:90073, baseId:302, name:"Mega Sableye", slug:"sableye-mega", ability:"Magic Bounce"},
   salamencite: {virtualId:90074, baseId:373, name:"Mega Salamence", slug:"salamence-mega", ability:"Aerilate"},
-  sceptilite: {virtualId:90075, baseId:254, name:"Mega Sceptile", slug:"sceptile-mega", ability:"Lightning Rod"},
+  sceptilite: {virtualId:90075, baseId:254, name:"Mega Sceptile", slug:"sceptile-mega", ability:"Lightning Rod", types:"Grass/Dragon"},
   scizorite: {virtualId:90076, baseId:212, name:"Mega Scizor", slug:"scizor-mega", ability:"Technician"},
   scolipite: {virtualId:90077, baseId:545, name:"Mega Scolipede", slug:null, ability:null},
   scovillainite: {virtualId:90078, baseId:952, name:"Mega Scovillain", slug:null, ability:null},
@@ -9791,6 +10117,7 @@ function useItemOnPokemon(itemId, caughtIdx){
       return;
     }
     var oldName = p.name;
+    dexSeen[p.id] = true; // keep the pre-evolution species checked off in the Pokédex forever
     p.id = newId;
     p.name = POKE_NAMES[p.id] || p.name;
     inventory[itemId]--;
@@ -13960,13 +14287,18 @@ function loadUserData(username) {
       party       = s.party       || [];
       pokedollars = s.pokedollars || 0;
       inventory   = s.inventory   || {};
+      dexSeen     = s.dexSeen     || {};
+      friends     = s.friends     || [];
     } else {
       caught = []; party = [];
-      pokedollars = 0; inventory = {};
+      pokedollars = 0; inventory = {}; dexSeen = {}; friends = [];
     }
-  } catch(e) { caught = []; party = []; }
+  } catch(e) { caught = []; party = []; dexSeen = {}; friends = []; }
   // Migrate: ensure all caught have xp field
   caught.forEach(function(p){ if(p.xp === undefined) p.xp = 0; });
+  // Migrate: older saves won't have a dexSeen registry yet — backfill it from
+  // whatever is currently owned so at least those show up right away.
+  caught.forEach(function(p){ dexSeen[p.id] = true; });
 }
 
 function renderUserBar(username) {
