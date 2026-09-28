@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Serif+Display:ital@0;1&family=Press+Start+2P&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1404,6 +1405,8 @@ footer a{color:var(--navy);text-decoration:none}
   animation:raid-den-pulse 1.8s ease-in-out infinite;
 }
 .raid-den-btn.show{display:flex}
+.raid-den-btn.idle{animation:none;opacity:.8;box-shadow:none}
+.raid-den-btn.idle .raid-den-exclaim{display:none}
 .raid-den-btn:hover{transform:scale(1.1)}
 .raid-den-exclaim{
   position:absolute;top:-5px;right:-4px;width:16px;height:16px;border-radius:50%;
@@ -1623,6 +1626,41 @@ footer a{color:var(--navy);text-decoration:none}
 .settings-footer{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;flex-shrink:0;background:#fff}
 .settings-save-btn{background:var(--navy);color:#fff;border:none;padding:10px 24px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
 .settings-save-btn:hover{background:var(--navy-dk)}
+
+
+/* ONLINE RAID */
+.raid-invite-box{background:rgba(255,255,255,.12);border:2px dashed rgba(255,255,255,.5);border-radius:12px;padding:10px 12px;margin:8px 0;text-align:center;color:#fff;font-size:12px}
+.raid-invite-box.err{border-color:#ff8a80;color:#ffd0cc}
+.raid-invite-label{font-size:10px;opacity:.8;text-transform:uppercase;letter-spacing:.06em}
+.raid-invite-code{font-family:'Press Start 2P',monospace;font-size:18px;letter-spacing:3px;margin:6px 0 8px;color:#ffd23f}
+.raid-invite-box button{background:#ffd23f;color:#222;border:none;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer;font-size:12px}
+.mpj-label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:.6rem 0 .3rem}
+.mpj-input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;letter-spacing:1px}
+.mpj-pokes{display:flex;flex-wrap:wrap;gap:8px;max-height:200px;overflow-y:auto}
+.mpj-poke{display:flex;align-items:center;gap:6px;background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:4px 8px;cursor:pointer;font-size:11px;text-align:left}
+.mpj-poke img{width:38px;height:38px;object-fit:contain}
+.mpj-poke.active{border-color:#f5a623;background:#fff7e0}
+.mpj-status{min-height:18px;margin:.6rem 0;font-size:12.5px}
+.mpj-status.err{color:#c0392b}.mpj-status.ok{color:#1e8449}
+.mpj-hint{font-size:13px;color:var(--muted);margin-bottom:.6rem}
+.mpj-players{display:flex;flex-direction:column;gap:6px;margin-bottom:1rem}
+.mpj-player{background:var(--bg);border-radius:8px;padding:8px 10px;font-size:13px;font-weight:600}
+.mpj-btn{width:100%;background:var(--navy);color:#fff;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;font-size:14px}
+.mpj-btn.secondary{background:#888}
+
+
+.friends-badge{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;border-radius:8px;background:#e74c3c;color:#fff;font-size:10px;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 4px;border:2px solid #fff;font-family:'DM Sans',sans-serif}
+.friends-badge.show{display:flex}
+.friends-section-title{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.4rem 0 -2px;display:flex;align-items:center;gap:6px}
+.friends-section-title .cnt{background:#e74c3c;color:#fff;border-radius:8px;padding:0 6px;font-size:10px}
+.friend-act{border:none;border-radius:8px;padding:6px 11px;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}
+.friend-act.primary{background:var(--gold,#f5a623);color:#1a1a1a}
+.friend-act.ok{background:#2ecc71;color:#fff}
+.friend-act.no{background:#eee;color:#666}
+.friend-act:disabled{background:#eee;color:#999;cursor:default}
+.friend-row.static{cursor:default}.friend-row.static:hover{background:var(--bg)}
+.friend-row.request{border-color:#f5a623;background:#fff8e6}
+.friend-row-actions{display:flex;gap:6px;align-items:center}
 
 /* FRIENDS LIST */
 .friends-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;display:none;align-items:center;justify-content:center;padding:1rem}
@@ -1863,8 +1901,8 @@ footer a{color:var(--navy);text-decoration:none}
   <button class="raid-den-btn" id="raid-den-btn" onclick="openRaidLobby()" title="Dynamax Raid Den">
     🌀<span class="raid-den-exclaim" id="raid-den-exclaim">!</span>
   </button>
-  <button class="shop-nav-btn" onclick="openFriends()" title="Friends List">
-    <i class="ti ti-users"></i>
+  <button class="shop-nav-btn" id="friends-btn" onclick="openFriends()" title="Friends List" style="position:relative">
+    <i class="ti ti-users"></i><span class="friends-badge" id="friends-badge"></span>
   </button>
   <button class="settings-btn" onclick="openSettings()" title="Settings">
     <i class="ti ti-settings"></i>
@@ -1879,6 +1917,14 @@ footer a{color:var(--navy);text-decoration:none}
   <div class="raid-battle-modal" id="raid-battle-modal"></div>
 </div>
 
+<!-- JOIN ONLINE RAID -->
+<div class="friends-overlay" id="join-raid-overlay" onclick="if(event.target===this)mpGuestClose()">
+  <div class="friends-modal">
+    <div class="friends-header"><span>🔗 JOIN A RAID</span><span class="friends-close" onclick="mpGuestClose()">✕</span></div>
+    <div id="join-raid-body" style="padding:1.2rem 1.4rem;overflow-y:auto"></div>
+  </div>
+</div>
+
 <!-- FRIENDS LIST -->
 <div class="friends-overlay" id="friends-overlay" onclick="if(event.target===this)closeFriends()">
   <div class="friends-modal">
@@ -1887,11 +1933,12 @@ footer a{color:var(--navy);text-decoration:none}
       <span class="friends-close" onclick="closeFriends()">✕</span>
     </div>
     <div class="friends-add-row">
-      <input type="text" id="friends-add-input" placeholder="Enter a trainer's username..." onkeydown="if(event.key==='Enter')addFriend()"/>
-      <button onclick="addFriend()">Add</button>
+      <input type="text" id="friends-add-input" placeholder="Search for a trainer by username..." oninput="friendQuery=this.value;renderFriends()" autocomplete="off"/>
+      <button onclick="friendQuery=document.getElementById('friends-add-input').value;renderFriends()">Search</button>
     </div>
     <div id="friends-add-msg" class="friends-add-msg"></div>
     <div id="friends-list" class="friends-list"></div>
+    <div style="padding:0 1.4rem 1.2rem"><button class="mpj-btn" onclick="closeFriends();openJoinRaid('')">🔗 Join a friend's raid</button></div>
   </div>
 </div>
 <div class="friend-card-overlay" id="friend-card-overlay" onclick="if(event.target===this)closeFriendCard()">
@@ -7339,6 +7386,44 @@ const ABILITY_DESC={
 function getAbility(id){return POKE_ABILITIES[id]||"Run Away";}
 function getAbilityDesc(name){return ABILITY_DESC[name]||"A useful ability unique to this Pokemon in battle.";}
 const MOVE_TYPES={
+  "Aeroblast":"Flying",
+  "Belch":"Poison",
+  "Crush Claw":"Normal",
+  "Dark Void":"Dark",
+  "Dizzy Punch":"Normal",
+  "Dynamax Cannon":"Dragon",
+  "Facade":"Normal",
+  "Final Gambit":"Fighting",
+  "Flame Burst":"Fire",
+  "Freeze Shock":"Ice",
+  "Heart Stamp":"Psychic",
+  "Heat Crash":"Fire",
+  "Hidden Power":"Normal",
+  "Howl":"Normal",
+  "Hydro Cannon":"Water",
+  "Hyper Kick":"Fighting",
+  "Ice Burn":"Ice",
+  "Judgment":"Normal",
+  "Magma Storm":"Fire",
+  "Metal Burst":"Steel",
+  "Needle Arm":"Grass",
+  "Noble Roar":"Normal",
+  "Play Nice":"Normal",
+  "Power Trip":"Dark",
+  "Present":"Normal",
+  "Psywave":"Psychic",
+  "Return":"Normal",
+  "Rock Climb":"Normal",
+  "Searing Shot":"Fire",
+  "Seed Flare":"Grass",
+  "Sketch":"Normal",
+  "Slack Off":"Normal",
+  "Spikes":"Ground",
+  "Tail Glow":"Bug",
+  "Tease":"Fairy",
+  "Wake-Up Slap":"Fighting",
+  "Weather Ball":"Normal",
+  "Wring Out":"Normal",
   "Absorb":"Grass",
   "Acid":"Poison",
   "Acid Armor":"Normal",
@@ -7770,8 +7855,12 @@ function useWishStone(itemId){
 function renderRaidDenIcon(){
   var btn = document.getElementById('raid-den-btn');
   if(!btn) return;
-  var show = raidState && raidState.status !== 'defeated' && caught.length > 0;
-  btn.classList.toggle('show', !!show);
+  var hasOwnRaid = !!(raidState && raidState.status !== 'defeated');
+  // Always shown once you own a Pokémon, so "Join with Code" stays reachable even
+  // after you've cleared (or are waiting on) your own raid.
+  btn.classList.toggle('show', caught.length > 0);
+  btn.classList.toggle('idle', !hasOwnRaid);
+  btn.title = hasOwnRaid ? 'Dynamax Raid Den' : "Raid Den — join a friend's raid";
 }
 
 // Poll every 20s so the den appears promptly at the top of the hour without
@@ -7780,13 +7869,34 @@ setInterval(ensureRaidSpawned, 20000);
 
 /* ── Raid Lobby UI ── */
 function openRaidLobby(){
-  if(!raidState || raidState.status === 'defeated' || !caught.length) return;
+  if(!caught.length) return;
+  if(!raidState || raidState.status === 'defeated'){ renderRaidIdle(); document.getElementById('raid-overlay').classList.add('show'); return; }
   if(raidState.playerCaughtIdx === null || raidState.playerCaughtIdx === undefined || !caught[raidState.playerCaughtIdx]){
     raidState.playerCaughtIdx = party.length ? party[0] : 0;
   }
   raidState.status = 'lobby';
   document.getElementById('raid-overlay').classList.add('show');
   renderRaidLobby();
+}
+// Shown when you have no raid of your own right now — you can still join a friend's.
+function renderRaidIdle(){
+  var modal = document.getElementById('raid-modal');
+  modal.innerHTML =
+    '<div class="raid-right" style="flex:1;align-items:center;justify-content:center;text-align:center;gap:14px">'+
+      '<button class="raid-close-x" onclick="closeRaidLobby()">✕</button>'+
+      '<div style="font-size:42px">🌀</div>'+
+      '<div style="font-weight:800;font-size:16px;color:#222">No Dynamax raid of your own right now</div>'+
+      '<div style="font-size:13px;color:#555;max-width:320px">A new den appears every hour. Meanwhile, you can join a friend\'s raid with their room code.</div>'+
+      '<div class="raid-menu" style="width:100%;max-width:320px">'+
+        '<button class="raid-menu-btn primary" onclick="raidJoinByCode()">Join with Code <span class="chev">›</span></button>'+
+        '<button class="raid-menu-btn" onclick="closeRaidLobby()">Close <span class="chev">›</span></button>'+
+      '</div>'+
+    '</div>';
+}
+// The raid screen sits above the join dialog, so close it first.
+function raidJoinByCode(){
+  closeRaidLobby();
+  openJoinRaid('');
 }
 function closeRaidLobby(){
   document.getElementById('raid-overlay').classList.remove('show');
@@ -7822,7 +7932,8 @@ function renderRaidLobby(){
         '<span>'+(currentUser||'You')+'</span>'+
       '</div>'+
       '<div class="raid-menu">'+
-        '<button class="raid-menu-btn" disabled title="Multiplayer invites aren\'t available in this version">Invite Others <span class="chev">›</span></button>'+
+        '<button class="raid-menu-btn" onclick="raidChooseInvite()">Invite Others <span class="chev">›</span></button>'+
+        '<button class="raid-menu-btn" onclick="raidJoinByCode()">Join with Code <span class="chev">›</span></button>'+
         '<button class="raid-menu-btn primary" onclick="raidChooseNoInvite()">Don\'t Invite Others <span class="chev">›</span></button>'+
         '<button class="raid-menu-btn" onclick="raidOpenSwitchPokemon()">Switch Pokémon <span class="chev">›</span></button>'+
         '<button class="raid-menu-btn" onclick="raidQuit()">Quit <span class="chev">›</span></button>'+
@@ -7846,17 +7957,19 @@ function raidOpenSwitchPokemon(){
   modal.innerHTML =
     raidLeftPanelHtml(false)+
     '<div class="raid-right">'+
-      '<button class="raid-close-x" onclick="renderRaidLobby()">◀</button>'+
+      '<button class="raid-close-x" onclick="raidBackToMenu()">◀</button>'+
       '<div style="margin-top:2.4rem;font-weight:800;font-size:14px;color:#222;text-align:center">Choose your Pokémon</div>'+
       '<div class="bw-party-list-grid" style="max-height:340px">'+cards+'</div>'+
     '</div>';
 }
 function raidSelectPokemon(idx){
   raidState.playerCaughtIdx = idx;
-  renderRaidLobby();
+  raidBackToMenu();
 }
 
 function raidQuit(){
+  if(raidState && raidState._prepTimer){ clearInterval(raidState._prepTimer); raidState._prepTimer = null; }
+  mpHostCleanup();
   closeRaidLobby();
 }
 
@@ -7874,6 +7987,7 @@ function raidGenerateBots(){
   return bots;
 }
 function raidChooseNoInvite(){
+  mpHostCleanup();
   raidState.bots = raidGenerateBots();
   raidState._prepSecondsLeft = 150; // 2:30 prep countdown, matches reference art's ballpark
   renderRaidGathering();
@@ -7897,23 +8011,38 @@ function raidFormatTime(sec){
 function renderRaidGathering(){
   var p = caught[raidState.playerCaughtIdx];
   var modal = document.getElementById('raid-modal');
-  var bots = raidState.bots || [];
-  var botSlotsHtml = bots.map(function(b){
-    return '<div class="raid-roster-slot">'+
-      '<img class="raid-roster-spr" src="'+spriteUrl(b.pokeId,false)+'" onerror="'+spriteOnerror(b.pokeId,false)+'">'+
-      '<span>'+b.name+'</span>'+
-    '</div>';
-  }).join('');
+  var isHost = mp.role === 'host';
+  var slotsHtml = '', inviteHtml = '';
+  if(isHost){
+    mp.guests.forEach(function(g){
+      slotsHtml += '<div class="raid-roster-slot"><div class="raid-roster-icon ready">✓</div>'+
+        '<img class="raid-roster-spr" src="'+spriteUrl(g.poke.id,g.poke.shiny)+'" onerror="'+spriteOnerror(g.poke.id,g.poke.shiny)+'">'+
+        '<span>'+mpEsc(g.name)+'</span></div>';
+    });
+    for(var i=mp.guests.length;i<3;i++){
+      slotsHtml += '<div class="raid-roster-slot"><div class="raid-roster-icon">…</div><span style="opacity:.6">Waiting (bot if empty)</span></div>';
+    }
+    if(mp.roomError) inviteHtml = '<div class="raid-invite-box err">'+mpEsc(mp.roomError)+'</div>';
+    else if(!mp.roomCode) inviteHtml = '<div class="raid-invite-box">Opening online room…</div>';
+    else inviteHtml = '<div class="raid-invite-box"><div class="raid-invite-label">Room code</div><div class="raid-invite-code">'+mp.roomCode+'</div><button onclick="mpCopyInvite()">📋 Copy invite link</button></div>';
+  } else {
+    (raidState.bots||[]).forEach(function(b){
+      slotsHtml += '<div class="raid-roster-slot">'+
+        '<img class="raid-roster-spr" src="'+spriteUrl(b.pokeId,false)+'" onerror="'+spriteOnerror(b.pokeId,false)+'">'+
+        '<span>'+b.name+'</span></div>';
+    });
+  }
   modal.innerHTML =
     raidLeftPanelHtml(false)+
     '<div class="raid-right">'+
-      '<button class="raid-close-x" onclick="renderRaidLobby()">◀</button>'+
+      '<button class="raid-close-x" onclick="raidGatheringBack()">◀</button>'+
       '<div class="raid-timer">Time Remaining <span id="raid-timer-label">'+raidFormatTime(raidState._prepSecondsLeft)+'</span></div>'+
+      inviteHtml+
       '<div class="raid-roster">'+
         '<div class="raid-roster-slot"><div class="raid-roster-icon ready">✓</div>'+
           (p?'<img class="raid-roster-spr" src="'+spriteUrl(p.id,p.shiny||false)+'" onerror="'+spriteOnerror(p.id,p.shiny)+'">':'')+
           '<span>'+(currentUser||'You')+'</span></div>'+
-        botSlotsHtml+
+        slotsHtml+
       '</div>'+
       '<div class="raid-menu">'+
         '<button class="raid-menu-btn primary" onclick="raidReadyToBattle()">Ready to Battle! <span class="chev">›</span></button>'+
@@ -7944,7 +8073,7 @@ var MAX_MOVE_NAMES = {
   Grass:'Max Overgrowth', Ice:'Max Hailstorm', Fighting:'Max Knuckle', Poison:'Max Ooze',
   Ground:'Max Quake', Flying:'Max Airstream', Psychic:'Max Mindstorm', Bug:'Max Flutterby',
   Rock:'Max Rockfall', Ghost:'Max Phantasm', Dragon:'Max Wyrmwind', Dark:'Max Darkness',
-  Steel:'Max Steelspike', Fairy:'Max Starfall',"Aeroblast":"Flying","Belch":"Poison","Crush Claw":"Normal","Dark Void":"Dark","Dizzy Punch":"Normal","Dynamax Cannon":"Dragon","Facade":"Normal","Final Gambit":"Fighting","Flame Burst":"Fire","Freeze Shock":"Ice","Heart Stamp":"Psychic","Heat Crash":"Fire","Hidden Power":"Normal","Howl":"Normal","Hydro Cannon":"Water","Hyper Kick":"Fighting","Ice Burn":"Ice","Judgment":"Normal","Magma Storm":"Fire","Metal Burst":"Steel","Needle Arm":"Grass","Noble Roar":"Normal","Play Nice":"Normal","Power Trip":"Dark","Present":"Normal","Psywave":"Psychic","Return":"Normal","Rock Climb":"Normal","Searing Shot":"Fire","Seed Flare":"Grass","Sketch":"Normal","Slack Off":"Normal","Spikes":"Ground","Tail Glow":"Bug","Tease":"Fairy","Wake-Up Slap":"Fighting","Weather Ball":"Normal","Wring Out":"Normal",
+  Steel:'Max Steelspike', Fairy:'Max Starfall',
 };
 
 // ── G-Max Moves: a Gigantamaxed Pokémon's signature move. It replaces the generic
@@ -8045,6 +8174,11 @@ function raidApplyGmaxEffect(bs, effect){
 
 function raidReadyToBattle(){
   if(raidState._prepTimer){ clearInterval(raidState._prepTimer); raidState._prepTimer = null; }
+  if(mp.role === 'host'){
+    // Only friends whose connection is still open take a slot; bots fill the rest.
+    mp.guests = mp.guests.filter(function(g){ return g.conn && g.conn.open; });
+    raidState.bots = raidGenerateBots().slice(0, Math.max(0, 3 - mp.guests.length));
+  }
   closeRaidLobby();
   startRaidBattle();
 }
@@ -8080,6 +8214,18 @@ function startRaidBattle(){
       moves: getMovesAtLevel(b.pokeId, aLvl),
     };
   });
+  // Online friends take the first ally slots with their own real Pokémon & moves.
+  if(mp.role === 'host'){
+    var guestAllies = mp.guests.map(function(g){
+      var gs = getStats(g.poke.id);
+      var gMax = calcHp(gs[0], g.poke.level) * 3;
+      return { name:g.name, pokeId:g.poke.id, shiny:g.poke.shiny, lvl:g.poke.level,
+        hp:gMax, maxHp:gMax, atk:gs[1], def:gs[2],
+        types:(POKE_TYPES[g.poke.id]||'Normal').split('/'),
+        moves:g.poke.moves, remote:true, guest:g };
+    });
+    allies = guestAllies.concat(allies);
+  }
 
   raidBattleState = {
     playerCaughtIdx: raidState.playerCaughtIdx,
@@ -8098,6 +8244,7 @@ function startRaidBattle(){
     playerCritBoost: false, playerDamageReduction: 1,
   };
   registerBattleUse(raidState.playerCaughtIdx); // count this Pokémon as having battled (friendship evolutions)
+  if(mp.role === 'host'){ mp.guests.forEach(function(g,i){ g.slotIdx = i+1; mpSafeSend(g.conn,{type:'start'}); }); }
   document.getElementById('raid-battle-overlay').classList.add('show');
   raidBattleLog((currentUser||'You')+' sent out '+p.name+'!');
   renderRaidBattle();
@@ -8106,6 +8253,366 @@ function startRaidBattle(){
 function raidBattleLog(msg){
   raidBattleState.log.push(msg);
   if(raidBattleState.log.length > 5) raidBattleState.log.shift();
+}
+
+/* ══════════════════ ONLINE RAID (PeerJS / WebRTC, host-authoritative) ══════════════════
+   The HOST's browser runs the real raid engine exactly as in solo raids. Friends who
+   join send their Pokémon + move choices over a WebRTC data channel, and the host
+   streams state snapshots back so everyone's screen updates live. No game server
+   is involved — PeerJS's free public broker is only used to introduce the browsers. */
+var mp = { role:null, peer:null, roomCode:null, roomError:null, guests:[], hostConn:null,
+           myTurn:null, awaiting:null, youIdx:null, joined:false, joinStatus:'', joinCode:'',
+           selectedIdx:null, myPoke:null, lastSnap:null, endInfo:null, over:false, lobbyPlayers:[] };
+var MP_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function mpRandomCode(){ var s=''; for(var i=0;i<6;i++) s+=MP_ALPHABET.charAt(Math.floor(Math.random()*MP_ALPHABET.length)); return s; }
+function mpPeerId(code){ return 'pkl-raid-'+code; }
+function mpInviteLink(){ return location.origin+location.pathname+'?raid='+mp.roomCode; }
+function mpEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function mpCleanName(s){ return String(s||'Trainer').replace(/[^A-Za-z0-9 _.\-]/g,'').trim().slice(0,16) || 'Trainer'; }
+function mpSafeSend(conn,obj){ try{ if(conn && conn.open) conn.send(obj); }catch(e){} }
+
+/* ─────────── HOST ─────────── */
+function raidChooseInvite(){
+  mpHostCleanup();
+  if(typeof Peer === 'undefined'){
+    mp.roomError = 'Online play needs an internet connection (the connection library could not load).';
+  }
+  mp.role = 'host'; mp.guests = []; mp.over = false; mp.roomCode = null;
+  if(typeof Peer !== 'undefined'){ mp.roomError = null; mpOpenPeer(0); }
+  raidState.bots = [];
+  raidState._prepSecondsLeft = 150;
+  renderRaidGathering();
+  if(raidState._prepTimer) clearInterval(raidState._prepTimer);
+  raidState._prepTimer = setInterval(function(){
+    raidState._prepSecondsLeft--;
+    if(raidState._prepSecondsLeft <= 0){
+      clearInterval(raidState._prepTimer); raidState._prepTimer = null;
+      raidReadyToBattle(); return;
+    }
+    var t = document.getElementById('raid-timer-label');
+    if(t) t.textContent = raidFormatTime(raidState._prepSecondsLeft);
+  }, 1000);
+}
+function mpOpenPeer(attempt){
+  var code = mpRandomCode();
+  var peer = new Peer(mpPeerId(code));
+  mp.peer = peer;
+  peer.on('open', function(){ mp.roomCode = code; raidRefreshGathering(); });
+  peer.on('connection', mpHostOnConnection);
+  peer.on('error', function(err){
+    if(err && err.type === 'unavailable-id' && attempt < 5){ try{peer.destroy();}catch(e){} mpOpenPeer(attempt+1); return; }
+    mp.roomError = 'Could not open an online room ('+((err&&err.type)||'error')+'). You can still start the raid with bots.';
+    raidRefreshGathering();
+  });
+}
+function raidRefreshGathering(){
+  var ov = document.getElementById('raid-overlay');
+  if(mp.role==='host' && raidState && raidState.status==='lobby' && ov && ov.classList.contains('show') && document.getElementById('raid-timer-label')){
+    renderRaidGathering();
+  }
+}
+function mpHostOnConnection(conn){
+  conn.on('data', function(d){ mpHostOnData(conn, d); });
+  conn.on('close', function(){ mpHostOnGuestGone(conn); });
+  conn.on('error', function(){ mpHostOnGuestGone(conn); });
+}
+function mpSanitizePoke(p){
+  if(!p || typeof p !== 'object') return null;
+  var id = parseInt(p.id,10);
+  if(!(id>=1 && id<=1025) || !POKE_NAMES[id]) return null;
+  var level = Math.max(1, Math.min(100, parseInt(p.level,10) || 5));
+  var moves = (Array.isArray(p.moves)?p.moves:[]).filter(function(m){ return typeof m==='string' && MOVE_TYPES[m]!==undefined; }).slice(0,4);
+  if(!moves.some(function(m){return getMovePower(m)>0;})) moves = getMovesAtLevel(id, level);
+  return { id:id, shiny:!!p.shiny, level:level, moves:moves };
+}
+function mpHostOnData(conn, d){
+  if(!d || typeof d !== 'object') return;
+  if(d.type === 'join'){
+    if(raidBattleState || !raidState || raidState.status !== 'lobby' || mp.role !== 'host'){
+      mpSafeSend(conn,{type:'refused', reason:'This raid has already started or is closed.'}); return;
+    }
+    var existing = mp.guests.filter(function(g){return g.conn===conn;})[0];
+    if(mp.guests.length >= 3 && !existing){ mpSafeSend(conn,{type:'refused', reason:'This raid room is full.'}); return; }
+    var poke = mpSanitizePoke(d.poke);
+    if(!poke){ mpSafeSend(conn,{type:'refused', reason:'That Pokémon could not be used.'}); return; }
+    var name = mpCleanName(d.name);
+    if(existing){ existing.name = name; existing.poke = poke; }
+    else mp.guests.push({conn:conn, name:name, poke:poke});
+    mpSafeSend(conn,{type:'joined'});
+    mpBroadcastLobby(); raidRefreshGathering();
+  } else if(d.type === 'move'){
+    if(mp.awaiting && mp.awaiting.a.guest && mp.awaiting.a.guest.conn === conn) mp.awaiting.finish(String(d.move||''));
+  }
+}
+function mpBroadcastLobby(){
+  var players = [currentUser||'Host'].concat(mp.guests.map(function(g){return g.name;}));
+  mp.guests.forEach(function(g){ mpSafeSend(g.conn,{type:'lobby', players:players}); });
+}
+function mpHostOnGuestGone(conn){
+  var g = mp.guests.filter(function(x){return x.conn===conn;})[0];
+  if(!g) return;
+  if(raidBattleState){
+    var a = raidBattleState.allies.filter(function(x){return x.guest===g;})[0];
+    if(a){
+      a.remote = false; // a bot takes over this slot
+      raidBattleLog(a.name+' disconnected — a bot took over.');
+      if(mp.awaiting && mp.awaiting.a === a) mp.awaiting.finish(null);
+      renderRaidBattle();
+    }
+  } else {
+    mp.guests = mp.guests.filter(function(x){return x!==g;});
+    mpBroadcastLobby(); raidRefreshGathering();
+  }
+}
+function mpHostCleanup(){
+  if(mp.awaiting){ try{ mp.awaiting.finish(null); }catch(e){} }
+  if(mp.role === 'host'){
+    mp.guests.forEach(function(g){ mpSafeSend(g.conn,{type:'closed'}); try{ g.conn.close(); }catch(e){} });
+    try{ if(mp.peer) mp.peer.destroy(); }catch(e){}
+  }
+  if(mp.role === 'host' || (!mp.role)){ mp.role=null; mp.peer=null; mp.roomCode=null; mp.roomError=null; mp.guests=[]; mp.awaiting=null; }
+}
+function mpCopyInvite(){
+  var link = mpInviteLink();
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(link).then(function(){ showToast('Invite link copied!'); }, function(){ window.prompt('Copy this invite link:', link); });
+  } else { window.prompt('Copy this invite link:', link); }
+}
+function raidGatheringBack(){
+  if(raidState._prepTimer){ clearInterval(raidState._prepTimer); raidState._prepTimer = null; }
+  mpHostCleanup();
+  renderRaidLobby();
+}
+function raidBackToMenu(){ if(mp.role==='host') renderRaidGathering(); else renderRaidLobby(); }
+
+// Waits for a remote friend to pick their move (15s), otherwise auto-picks.
+function mpRequestMove(a, cb){
+  var done = false, t;
+  function finish(move){ if(done) return; done = true; clearTimeout(t); mp.awaiting = null; cb(move); }
+  t = setTimeout(function(){ raidBattleLog(a.name+' took too long — a move was chosen for them.'); finish(null); }, 15000);
+  mp.awaiting = { a:a, finish:finish };
+  raidBattleLog('Waiting for '+a.name+' to choose a move...');
+  renderRaidBattle();
+  var opts = (a.moves||[]).map(function(m){ return {name:m, type:MOVE_TYPES[m]||'Normal', power:getMovePower(m)}; });
+  mpSafeSend(a.guest.conn, {type:'yourTurn', moves:opts});
+}
+function mpBuildSnapshot(){
+  var bs = raidBattleState, p = caught[bs.playerCaughtIdx];
+  var raiders = [{name:currentUser||'Host', pokeId:p.id, shiny:!!p.shiny, hp:bs.playerHp, maxHp:bs.playerMaxHp, lvl:bs.playerLvl, host:true}];
+  bs.allies.forEach(function(a){
+    raiders.push({name:a.name, pokeId:a.pokeId, shiny:!!a.shiny, hp:a.hp, maxHp:a.maxHp, lvl:a.lvl, bot:!a.remote});
+  });
+  return { type:'state',
+    boss:{pokeId:raidState.pokeId, isShiny:!!raidState.isShiny, level:raidState.level, stars:raidState.stars},
+    bossHp:bs.bossHp, bossMaxHp:bs.bossMaxHp, bossStatus:bs.bossStatus, turns:bs.turns, faints:bs.faints,
+    log:bs.log.slice(), raiders:raiders, over:!!bs.over };
+}
+function mpBroadcastState(){
+  if(mp.role!=='host' || !raidBattleState || !mp.guests.length) return;
+  var snap = mpBuildSnapshot();
+  mp.guests.forEach(function(g){
+    if(g.slotIdx !== undefined){ snap.youIdx = g.slotIdx; mpSafeSend(g.conn, snap); }
+  });
+}
+function mpHostSendEnd(won){
+  if(mp.role!=='host') return;
+  var msg = {type:'end', won:!!won, boss:{pokeId:raidState.pokeId, isShiny:!!raidState.isShiny, level:raidState.level, stars:raidState.stars}};
+  mp.guests.forEach(function(g){ mpSafeSend(g.conn, msg); });
+}
+
+/* ─────────── GUEST ─────────── */
+function openJoinRaid(prefill){
+  var pool = (party.length ? party : caught.map(function(_,i){return i;})).filter(function(i){return caught[i];});
+  if(!pool.length){ showToast('Catch a Pokémon first!'); return; }
+  mp.role = null; mp.joined = false; mp.joinStatus = ''; mp.over = false;
+  mp.joinCode = (prefill||'').toUpperCase();
+  if(mp.selectedIdx===null || !caught[mp.selectedIdx]) mp.selectedIdx = pool[0];
+  renderJoinRaid();
+  document.getElementById('join-raid-overlay').classList.add('show');
+}
+function mpSelectPoke(i){ mp.selectedIdx = i; renderJoinRaid(); }
+function renderJoinRaid(){
+  var body = document.getElementById('join-raid-body');
+  if(mp.joined){
+    var list = (mp.lobbyPlayers||[]).map(function(n){ return '<div class="mpj-player">👤 '+mpEsc(n)+'</div>'; }).join('');
+    body.innerHTML =
+      '<div class="mpj-status ok">✅ Joined the raid room!</div>'+
+      '<div class="mpj-hint">Waiting for the host to start the battle…</div>'+
+      '<div class="mpj-players">'+list+'</div>'+
+      '<button class="mpj-btn secondary" onclick="mpGuestClose()">Leave</button>';
+    return;
+  }
+  var pool = (party.length ? party : caught.map(function(_,i){return i;})).filter(function(i){return caught[i];});
+  var cards = pool.map(function(i){
+    var pp = caught[i], lvl = levelFromXp(pp.xp||0).level;
+    return '<button class="mpj-poke'+(i===mp.selectedIdx?' active':'')+'" onclick="mpSelectPoke('+i+')">'+
+      '<img src="'+spriteUrl(pp.id,pp.shiny||false)+'" onerror="'+spriteOnerror(pp.id,pp.shiny||false)+'"/>'+
+      '<span>'+mpEsc(pp.name)+'<br/>Lv'+lvl+'</span></button>';
+  }).join('');
+  body.innerHTML =
+    '<label class="mpj-label">Room code</label>'+
+    '<input id="join-raid-code" class="mpj-input" maxlength="200" placeholder="Room code or invite link" value="'+mpEsc(mp.joinCode)+'" oninput="mp.joinCode=this.value"/>'+
+    '<label class="mpj-label">Choose your Pokémon</label>'+
+    '<div class="mpj-pokes">'+cards+'</div>'+
+    '<div class="mpj-status'+(mp.joinStatus?' err':'')+'">'+mpEsc(mp.joinStatus)+'</div>'+
+    '<button class="mpj-btn" onclick="mpGuestJoin()">Join Raid</button>';
+}
+function mpGuestJoin(){
+  var rawCode = (mp.joinCode||'').trim();
+  var linkMatch = rawCode.match(/[?&]raid=([A-Za-z0-9]+)/); // friends can paste the whole invite link
+  var code = (linkMatch ? linkMatch[1] : rawCode).replace(/\s+/g,'').toUpperCase().replace(/^PKL-RAID-/,'');
+  if(!code){ mp.joinStatus='Enter the room code your friend sent you.'; renderJoinRaid(); return; }
+  if(typeof Peer === 'undefined'){ mp.joinStatus='Online play needs an internet connection (the connection library could not load).'; renderJoinRaid(); return; }
+  var pp = caught[mp.selectedIdx];
+  if(!pp){ mp.joinStatus='Pick a Pokémon first.'; renderJoinRaid(); return; }
+  mpGuestCleanup();
+  mp.role = 'guest'; mp.joined = false; mp.over = false;
+  mp.joinStatus = ''; mp.myPoke = { id:pp.id, shiny:!!pp.shiny };
+  document.getElementById('join-raid-body').innerHTML = '<div class="mpj-status ok">Connecting to room '+mpEsc(code)+'…</div>';
+  var lvl = levelFromXp(pp.xp||0).level;
+  var moves = (pp.moves && pp.moves.filter(Boolean).length) ? pp.moves.filter(Boolean) : getMovesAtLevel(pp.id, lvl);
+  var peer = new Peer(); mp.peer = peer;
+  var timeout = setTimeout(function(){
+    if(!mp.joined && mp.role==='guest'){ mpGuestCleanup(); mp.joinStatus='Could not reach that room. Check the code and try again.'; renderJoinRaid(); }
+  }, 15000);
+  peer.on('open', function(){
+    var conn = peer.connect(mpPeerId(code), {serialization:'json', reliable:true});
+    mp.hostConn = conn;
+    conn.on('open', function(){
+      mpSafeSend(conn, {type:'join', name:(currentUser||'Trainer'), poke:{id:pp.id, shiny:!!pp.shiny, level:lvl, moves:moves}});
+    });
+    conn.on('data', function(d){ if(d && d.type==='joined') clearTimeout(timeout); mpGuestOnData(d); });
+    conn.on('close', function(){ mpGuestOnClose(); });
+    conn.on('error', function(){ mpGuestOnClose(); });
+  });
+  peer.on('error', function(err){
+    clearTimeout(timeout);
+    var msg = (err && err.type==='peer-unavailable') ? 'No raid room found with that code.' : 'Connection problem ('+((err&&err.type)||'error')+').';
+    mpGuestCleanup(); mp.joinStatus = msg; renderJoinRaid();
+  });
+}
+function mpGuestOnData(d){
+  if(!d || typeof d !== 'object') return;
+  if(d.type === 'joined'){ mp.joined = true; renderJoinRaid(); }
+  else if(d.type === 'lobby'){ mp.lobbyPlayers = Array.isArray(d.players)?d.players.map(String):[]; if(mp.joined) renderJoinRaid(); }
+  else if(d.type === 'refused'){ mpGuestCleanup(); mp.joinStatus = String(d.reason||'Could not join.'); renderJoinRaid(); }
+  else if(d.type === 'start'){
+    mp.joined = true; mp.myTurn = null; mp.lastSnap = null; mp.endInfo = null;
+    document.getElementById('join-raid-overlay').classList.remove('show');
+    document.getElementById('raid-battle-modal').innerHTML = '<div class="raid-battle-result"><h2>⚔️ Raid started!</h2><p>Loading battle…</p></div>';
+    document.getElementById('raid-battle-overlay').classList.add('show');
+  }
+  else if(d.type === 'state'){ mp.lastSnap = d; mp.youIdx = d.youIdx; renderGuestBattle(); }
+  else if(d.type === 'yourTurn'){ mp.myTurn = Array.isArray(d.moves)?d.moves:null; renderGuestBattle(); }
+  else if(d.type === 'end'){ mp.over = true; mp.myTurn = null; mpGuestShowEnd(d); }
+  else if(d.type === 'closed'){ if(!mp.over) mpGuestNotice('The host closed the raid.'); }
+}
+function mpGuestOnClose(){
+  if(mp.over || mp.role!=='guest') return;
+  if(mp.lastSnap) mpGuestNotice('Lost connection to the host.');
+  else if(mp.joined){ mpGuestNotice('The host left the raid room.'); }
+}
+function mpGuestNotice(text){
+  mp.over = true;
+  var modal = document.getElementById('raid-battle-modal');
+  document.getElementById('join-raid-overlay').classList.remove('show');
+  modal.innerHTML = '<div class="raid-battle-result"><h2>Raid ended</h2><p>'+mpEsc(text)+'</p><button onclick="mpGuestClose()">Close</button></div>';
+  document.getElementById('raid-battle-overlay').classList.add('show');
+}
+function mpGuestCleanup(){
+  try{ if(mp.hostConn) mp.hostConn.close(); }catch(e){}
+  try{ if(mp.peer) mp.peer.destroy(); }catch(e){}
+  mp.peer = null; mp.hostConn = null; mp.role = null; mp.joined = false;
+}
+function mpGuestClose(){
+  mpGuestCleanup();
+  mp.lastSnap = null; mp.myTurn = null; mp.endInfo = null;
+  document.getElementById('join-raid-overlay').classList.remove('show');
+  document.getElementById('raid-battle-overlay').classList.remove('show');
+}
+function mpSendMove(i){
+  if(!mp.myTurn || !mp.myTurn[i]) return;
+  mpSafeSend(mp.hostConn, {type:'move', move:mp.myTurn[i].name});
+  mp.myTurn = null;
+  renderGuestBattle();
+}
+function renderGuestBattle(){
+  var s = mp.lastSnap; if(!s) return;
+  var modal = document.getElementById('raid-battle-modal');
+  var bossPct = Math.max(0, Math.round((s.bossHp/s.bossMaxHp)*100));
+  var bossCls = bossPct>50?'green':(bossPct>20?'yellow':'red');
+  var STATUS_TAG = {par:' [PAR]', psn:' [PSN]', brn:' [BRN]', confuse:' [CNF]', slp:' [SLP]'};
+  var faintDots=''; for(var i=0;i<4;i++) faintDots += '<div class="raid-battle-faint-dot'+(i<s.faints?' used':'')+'"></div>';
+  var b = s.boss, bId = parseInt(b.pokeId,10);
+  var me = s.raiders[mp.youIdx] || null;
+  var raidersHtml = s.raiders.map(function(r,idx){
+    var pct = Math.max(0, Math.round((r.hp/r.maxHp)*100));
+    var cls = pct>50?'green':(pct>20?'yellow':'red');
+    var id = parseInt(r.pokeId,10);
+    return '<div class="raid-raider'+(r.hp<=0?' fainted':'')+'"'+(idx===mp.youIdx?' style="outline:2px solid #ffd23f"':'')+'>'+
+      '<img src="'+spriteUrl(id,!!r.shiny)+'" onerror="'+spriteOnerror(id,!!r.shiny)+'"/>'+
+      '<div class="raid-raider-info"><div class="raid-raider-name">'+mpEsc(r.name)+(idx===mp.youIdx?' (YOU)':'')+(r.host?' ★':'')+' <span>Lv'+(parseInt(r.lvl,10)||0)+'</span></div>'+
+      '<div class="raid-raider-hptrack"><div class="raid-raider-hpfill '+cls+'" style="width:'+pct+'%"></div></div></div></div>';
+  }).join('');
+  var movesHtml;
+  if(s.over){ movesHtml = '<div class="raid-max-active">Battle over…</div>'; }
+  else if(mp.myTurn){
+    movesHtml = '<div class="bw-move-grid">'+mp.myTurn.map(function(m,i){
+      var dis = m.power<=0 ? ' disabled' : '';
+      return '<button class="bw-move-cell" style="border-color:'+tc(m.type)+'" onclick="mpSendMove('+i+')"'+dis+'>'+
+        '<span class="bw-move-cell-name">'+mpEsc(m.name)+'</span>'+
+        '<span class="bw-move-cell-type" style="background:'+tc(m.type)+'">'+mpEsc(String(m.type).toUpperCase())+'</span></button>';
+    }).join('')+'</div><div class="raid-max-active">Your turn — pick a move!</div>';
+  } else {
+    movesHtml = '<div class="raid-max-active">Waiting for your turn…</div>';
+  }
+  modal.innerHTML =
+    '<div class="raid-bt-scene">'+
+      '<div class="raid-bt-boss-hpbox">'+
+        '<div class="raid-bt-boss-name">'+(b.isShiny?'✨ ':'')+'Dynamax '+mpEsc(POKE_NAMES[bId]||'???')+(STATUS_TAG[s.bossStatus]||'')+' <span>Lv'+(parseInt(b.level,10)||0)+'</span></div>'+
+        '<div class="raid-bt-boss-hptrack"><div class="raid-bt-boss-hpfill '+bossCls+'" style="width:'+bossPct+'%"></div></div>'+
+        '<div class="raid-bt-boss-hpnums">'+Math.max(0,s.bossHp)+' / '+s.bossMaxHp+'</div>'+
+        '<div class="raid-battle-faints">'+faintDots+'</div>'+
+        '<div class="raid-bt-meta">Faints '+(s.faints|0)+'/4 · Turn '+(s.turns|0)+'/10 · '+'★'.repeat(Math.max(0,parseInt(b.stars,10)||0))+'</div>'+
+      '</div>'+
+      '<img class="raid-bt-boss-spr" src="'+spriteUrl(bId,!!b.isShiny)+'" onerror="'+spriteOnerror(bId,!!b.isShiny)+'"/>'+
+      (me ? '<img class="raid-bt-player-spr" src="'+spriteUrl(parseInt(me.pokeId,10),!!me.shiny,true)+'" onerror="'+spriteOnerror(parseInt(me.pokeId,10),!!me.shiny)+'"/>' : '')+
+      '<div class="raid-bt-allies">'+raidersHtml+'</div>'+
+    '</div>'+
+    '<div class="raid-bt-bottom">'+
+      '<div class="raid-bt-log">'+(s.log||[]).map(function(l){return '<div>'+mpEsc(l)+'</div>';}).join('')+'</div>'+
+      '<div class="raid-bt-actions">'+movesHtml+'</div>'+
+    '</div>';
+}
+function mpGuestShowEnd(d){
+  var modal = document.getElementById('raid-battle-modal');
+  var boss = d.boss || {}, bId = parseInt(boss.pokeId,10), stars = Math.max(1, Math.min(5, parseInt(boss.stars,10)||1));
+  mp.endInfo = {pokeId:bId, isShiny:!!boss.isShiny, level:parseInt(boss.level,10)||20, stars:stars};
+  var bName = mpEsc(POKE_NAMES[bId]||'the boss');
+  if(d.won){
+    var reward = 200*stars;
+    pokedollars += reward;
+    var gotMushroom = Math.random() < 0.5;
+    if(gotMushroom) inventory['max_mushroom'] = (inventory['max_mushroom']||0) + 1;
+    save(); renderPokedollarDisplay();
+    modal.innerHTML =
+      '<div class="raid-battle-result"><h2>🎉 Raid Cleared!</h2>'+
+      '<p>You and your friends defeated the Dynamax '+bName+'! Earned ₱'+reward+'.</p>'+
+      (gotMushroom?'<p style="color:#ffd76a;font-weight:800">🍄 It dropped a Max Mushroom!</p>':'<p style="opacity:.6">No Max Mushroom this time.</p>')+
+      '<button onclick="mpGuestCatchBoss()">Catch '+bName+'!</button><br/>'+
+      '<button style="background:#888;margin-top:8px" onclick="mpGuestClose()">Skip</button></div>';
+  } else {
+    modal.innerHTML =
+      '<div class="raid-battle-result"><h2>💥 Raid Failed</h2><p>The Dynamax '+bName+' got away this time.</p>'+
+      '<button onclick="mpGuestClose()">Close</button></div>';
+  }
+}
+function mpGuestCatchBoss(){
+  var e = mp.endInfo; if(!e) return;
+  var entry = { id:e.pokeId, name:POKE_NAMES[e.pokeId]||('#'+e.pokeId), shiny:e.isShiny, legendary:e.stars>=5,
+    xp:xpForLevel(e.level), uid:Date.now()+Math.floor(Math.random()*99999), ts:Date.now() };
+  caught.push(entry); save(); renderParty(); mpGuestClose();
+  showToast((e.isShiny?'✨ ':'')+entry.name+' was added to your Pokédex!');
 }
 
 /* ── Raid battle UI, styled to match the trainer battle screen ── */
@@ -8200,6 +8707,7 @@ function renderRaidBattle(){
         maxBtnHtml+
       '</div>'+
     '</div>';
+  mpBroadcastState(); // no-op unless hosting an online raid
 }
 
 /* ── Dynamax / Gigantamax activation ── */
@@ -8260,26 +8768,40 @@ function raidPlayerMove(moveIdx){
 }
 
 // The 3 bot allies each attack the boss (only ones still standing).
-function raidBattleAllyTurns(cb){
+// One ally attacks the boss with a real move (chosen = a remote friend's pick, else random).
+function raidAllyAct(a, chosen){
   var bs = raidBattleState;
   var bossDef = getStats(raidState.pokeId)[2] * (bs.bossDefMult||1);
   var defTypes = (POKE_TYPES[raidState.pokeId]||'Normal').split('/');
-  bs.allies.forEach(function(a){
-    if(bs.bossHp <= 0 || a.hp <= 0) return;
-    // Pick a random damaging move from the ally's real moveset (status moves,
-    // power 0, are skipped since the ally only ever attacks the boss).
-    var pool = (a.moves||[]).filter(function(m){ return getMovePower(m) > 0; });
-    var move = pool.length ? pool[Math.floor(Math.random()*pool.length)] : 'Tackle';
-    var moveType = MOVE_TYPES[move] || 'Normal';
-    var power = getMovePower(move) || 40;
-    var r = raidSimpleDamage(a.lvl, a.atk, bossDef, power, moveType, defTypes);
-    bs.bossHp = Math.max(0, bs.bossHp - r.dmg);
-    var effLabel = getEffectivenessLabel(r.mult);
-    var effText = effLabel.label ? effLabel.label+' ' : '';
-    raidBattleLog(a.name+"'s "+POKE_NAMES[a.pokeId]+' used '+move+'! '+effText+'(-'+r.dmg+' HP)');
-  });
-  renderRaidBattle();
-  setTimeout(cb, 600);
+  var pool = (a.moves||[]).filter(function(m){ return getMovePower(m) > 0; });
+  var move = (chosen && pool.indexOf(chosen) >= 0) ? chosen : (pool.length ? pool[Math.floor(Math.random()*pool.length)] : 'Tackle');
+  var moveType = MOVE_TYPES[move] || 'Normal';
+  var power = getMovePower(move) || 40;
+  var r = raidSimpleDamage(a.lvl, a.atk, bossDef, power, moveType, defTypes);
+  bs.bossHp = Math.max(0, bs.bossHp - r.dmg);
+  var effLabel = getEffectivenessLabel(r.mult);
+  var effText = effLabel.label ? effLabel.label+' ' : '';
+  raidBattleLog(a.name+"'s "+POKE_NAMES[a.pokeId]+' used '+move+'! '+effText+'(-'+r.dmg+' HP)');
+}
+function raidBattleAllyTurns(cb){
+  var bs = raidBattleState, i = 0;
+  function next(){
+    if(raidBattleState !== bs) return; // battle was closed
+    if(i >= bs.allies.length || bs.bossHp <= 0){
+      renderRaidBattle();
+      setTimeout(cb, 600);
+      return;
+    }
+    var a = bs.allies[i++];
+    if(bs.bossHp <= 0 || a.hp <= 0) return next();
+    if(a.remote && a.guest && a.guest.conn && a.guest.conn.open){
+      mpRequestMove(a, function(move){ raidAllyAct(a, move); renderRaidBattle(); next(); });
+    } else {
+      raidAllyAct(a, null);
+      next();
+    }
+  }
+  next();
 }
 
 function raidBattleBossCounter(){
@@ -8380,6 +8902,7 @@ function raidBattleWin(){
   var bs = raidBattleState;
   bs.over = true;
   bs.busy = false;
+  mpHostSendEnd(true);
   raidState.status = 'defeated';
   saveRaidState();
   var reward = 200 * raidState.stars;
@@ -8423,6 +8946,7 @@ function raidBattleLose(){
   var bs = raidBattleState;
   bs.over = true;
   bs.busy = false;
+  mpHostSendEnd(false);
   raidState.status = 'defeated';
   saveRaidState();
   renderRaidDenIcon();
@@ -8438,6 +8962,7 @@ function raidBattleLose(){
 function closeRaidBattle(){
   document.getElementById('raid-battle-overlay').classList.remove('show');
   raidBattleState = null;
+  mpHostCleanup();
 }
 
 /* ===== XP GRANT (to party after quiz/activity) ===== */
@@ -8629,9 +9154,142 @@ function getUserSaveSnapshot(username){
   }catch(e){ return null; }
 }
 
+/* ── Friend requests ──
+   Requests live in one shared inbox key (not inside anyone's save file) so a request
+   sent from one tab/account can't be overwritten by the recipient's own autosaves.
+   Note: like everything else in this game, this is per-browser — there's no server. */
+var FRIEND_MAIL_KEY = 'pgcc_friend_mail';
+var friendQuery = '';
+var friendKnownIncoming = null; // names we've already notified about
+function friendMailRead(){ try{ return JSON.parse(localStorage.getItem(FRIEND_MAIL_KEY)||'{}') || {}; }catch(e){ return {}; } }
+function friendMailWrite(m){ try{ localStorage.setItem(FRIEND_MAIL_KEY, JSON.stringify(m)); }catch(e){} }
+function friendBox(m, name){
+  var k = name.toLowerCase();
+  if(!m[k]) m[k] = {};
+  ['requests','accepted','removed'].forEach(function(f){ if(!Array.isArray(m[k][f])) m[k][f] = []; });
+  return m[k];
+}
+function friendEq(a,b){ return String(a).toLowerCase() === String(b).toLowerCase(); }
+function friendHas(list, name){ return list.some(function(x){ return friendEq(x,name); }); }
+function friendWithout(list, name){ return list.filter(function(x){ return !friendEq(x,name); }); }
+function friendCanon(name){
+  var keys = Object.keys(getUsers());
+  return keys.filter(function(u){ return friendEq(u,name); })[0] || null;
+}
+function isFriend(name){ return friendHas(friends, name); }
+function friendIncoming(){
+  if(!currentUser) return [];
+  var m = friendMailRead(), b = m[currentUser.toLowerCase()];
+  return (b && Array.isArray(b.requests)) ? b.requests.slice() : [];
+}
+function friendOutgoing(){
+  if(!currentUser) return [];
+  var m = friendMailRead(), out = [];
+  Object.keys(m).forEach(function(k){
+    if(k === currentUser.toLowerCase()) return;
+    var b = m[k];
+    if(b && Array.isArray(b.requests) && friendHas(b.requests, currentUser)) out.push(friendCanon(k) || k);
+  });
+  return out;
+}
+// Safe to embed a username inside an onclick="fn('…')" attribute.
+function fnArg(name){ return mpEsc("'"+String(name).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"'"); }
+
+function updateFriendsBadge(){
+  var b = document.getElementById('friends-badge'); if(!b) return;
+  var n = currentUser ? friendIncoming().length : 0;
+  b.textContent = n > 9 ? '9+' : String(n);
+  b.classList.toggle('show', n > 0);
+}
+// Applies accepts/removals other trainers left for us, and announces new requests.
+function friendProcessMail(announce){
+  if(!currentUser) { updateFriendsBadge(); return; }
+  var m = friendMailRead(), box = m[currentUser.toLowerCase()], changed = false;
+  if(box){
+    (box.accepted||[]).forEach(function(n){
+      if(!isFriend(n) && friendCanon(n)){ friends.push(friendCanon(n)); changed = true; if(announce) showToast('🎉 '+n+' accepted your friend request!'); }
+    });
+    (box.removed||[]).forEach(function(n){
+      if(isFriend(n)){ friends = friendWithout(friends, n); changed = true; }
+    });
+    if((box.accepted||[]).length || (box.removed||[]).length){
+      box.accepted = []; box.removed = []; friendMailWrite(m); changed = true;
+    }
+  }
+  if(changed) save();
+  var incoming = friendIncoming();
+  if(announce && friendKnownIncoming !== null){
+    incoming.forEach(function(n){ if(!friendHas(friendKnownIncoming, n)) showToast('👥 '+n+' sent you a friend request!'); });
+  } else if(announce && friendKnownIncoming === null && incoming.length){
+    showToast('👥 You have '+incoming.length+' pending friend request'+(incoming.length>1?'s':'')+'!');
+  }
+  friendKnownIncoming = incoming;
+  updateFriendsBadge();
+  var ov = document.getElementById('friends-overlay');
+  if(ov && ov.classList.contains('show')) renderFriends();
+}
+// Another tab (other account) sent/accepted something.
+window.addEventListener('storage', function(e){ if(e.key === FRIEND_MAIL_KEY) friendProcessMail(true); });
+
+function sendFriendRequest(name){
+  var canon = friendCanon(name);
+  var msg = document.getElementById('friends-add-msg');
+  function say(t, cls){ msg.textContent = t; msg.className = 'friends-add-msg '+(cls||''); }
+  if(!currentUser || !canon){ say('That trainer could not be found.','error'); return; }
+  if(friendEq(canon,currentUser)){ say("You can't add yourself!",'error'); return; }
+  if(isFriend(canon)){ say('You are already friends with '+canon+'.','error'); return; }
+  var m = friendMailRead(), mine = friendBox(m,currentUser);
+  if(friendHas(mine.requests, canon)){ friendMailWrite(m); acceptFriendRequest(canon); return; } // they already asked you
+  var theirs = friendBox(m,canon);
+  if(friendHas(theirs.requests, currentUser)){ say('Request already sent to '+canon+'.','error'); return; }
+  theirs.requests.push(currentUser);
+  friendMailWrite(m);
+  say('Friend request sent to '+canon+'!','ok');
+  renderFriends();
+}
+function acceptFriendRequest(name){
+  var canon = friendCanon(name) || name;
+  var m = friendMailRead(), mine = friendBox(m,currentUser), theirs = friendBox(m,canon);
+  mine.requests = friendWithout(mine.requests, canon);
+  if(!friendHas(theirs.accepted, currentUser)) theirs.accepted.push(currentUser);
+  theirs.requests = friendWithout(theirs.requests, currentUser);
+  friendMailWrite(m);
+  if(!isFriend(canon)) friends.push(canon);
+  save();
+  var msg = document.getElementById('friends-add-msg');
+  msg.textContent = 'You and '+canon+' are now friends!'; msg.className = 'friends-add-msg ok';
+  friendKnownIncoming = friendIncoming();
+  updateFriendsBadge(); renderFriends();
+}
+function declineFriendRequest(name){
+  var m = friendMailRead(), mine = friendBox(m,currentUser);
+  mine.requests = friendWithout(mine.requests, name);
+  friendMailWrite(m);
+  friendKnownIncoming = friendIncoming();
+  updateFriendsBadge(); renderFriends();
+}
+function cancelFriendRequest(name){
+  var m = friendMailRead(), theirs = friendBox(m,name);
+  theirs.requests = friendWithout(theirs.requests, currentUser);
+  friendMailWrite(m);
+  renderFriends();
+}
+function removeFriend(username, ev){
+  if(ev) ev.stopPropagation();
+  friends = friendWithout(friends, username);
+  // Friendship is mutual, so let them know to drop us too.
+  var m = friendMailRead(), theirs = friendBox(m, username);
+  if(!friendHas(theirs.removed, currentUser)) theirs.removed.push(currentUser);
+  friendMailWrite(m);
+  save();
+  renderFriends();
+}
+
 function openFriends(){
+  friendQuery = '';
   document.getElementById('friends-add-input').value = '';
   document.getElementById('friends-add-msg').textContent = '';
+  friendProcessMail(false);
   renderFriends();
   document.getElementById('friends-overlay').classList.add('show');
 }
@@ -8639,74 +9297,76 @@ function closeFriends(){
   document.getElementById('friends-overlay').classList.remove('show');
 }
 
-function addFriend(){
-  var input = document.getElementById('friends-add-input');
-  var msg = document.getElementById('friends-add-msg');
-  var name = (input.value||'').trim();
-  msg.className = 'friends-add-msg';
-  if(!name){ return; }
-  var allUsers = getUsers();
-  // Usernames are matched case-insensitively against every account that's
-  // ever signed in on this browser (this is a local-device friends list,
-  // not an internet-wide one, since the game has no server backend).
-  var matchKey = Object.keys(allUsers).filter(function(u){ return u.toLowerCase() === name.toLowerCase(); })[0];
-  if(!matchKey){
-    msg.textContent = 'No trainer named "'+name+'" found on this device.';
-    msg.className = 'friends-add-msg error';
-    return;
-  }
-  if(currentUser && matchKey.toLowerCase() === currentUser.toLowerCase()){
-    msg.textContent = "You can't add yourself as a friend!";
-    msg.className = 'friends-add-msg error';
-    return;
-  }
-  if(friends.some(function(f){ return f.toLowerCase() === matchKey.toLowerCase(); })){
-    msg.textContent = matchKey+' is already on your friends list.';
-    msg.className = 'friends-add-msg error';
-    return;
-  }
-  friends.push(matchKey);
-  save();
-  input.value = '';
-  msg.textContent = 'Added '+matchKey+' as a friend!';
-  msg.className = 'friends-add-msg ok';
-  renderFriends();
+function friendPreviewHtml(username){
+  var snap = getUserSaveSnapshot(username);
+  if(!snap) return {sprites:'', stats:'No save data yet'};
+  var ids = (snap.party.length ? snap.party : snap.caught.map(function(_,i){return i;})).slice(0,3)
+    .map(function(idx){ return snap.caught[idx]; }).filter(Boolean);
+  return {
+    sprites: ids.map(function(p){ return '<img src="'+spriteUrl(p.id,p.shiny)+'" onerror="'+spriteOnerror(p.id,p.shiny)+'"/>'; }).join(''),
+    stats: snap.uniqueCount+' seen · '+snap.caught.length+' caught · '+snap.shinyCount+' ✨'
+  };
 }
-
-function removeFriend(username, ev){
-  if(ev) ev.stopPropagation();
-  friends = friends.filter(function(f){ return f !== username; });
-  save();
-  renderFriends();
+function friendRowHtml(username, actionsHtml, opts){
+  opts = opts || {};
+  var pv = friendPreviewHtml(username);
+  var click = opts.card ? ' onclick="openFriendCard('+fnArg(username)+')"' : '';
+  return '<div class="friend-row'+(opts.card?'':' static')+(opts.request?' request':'')+'"'+click+'>'+
+    '<div class="friend-row-sprites">'+pv.sprites+'</div>'+
+    '<div class="friend-row-info"><div class="friend-row-name">'+mpEsc(username)+'</div>'+
+    '<div class="friend-row-stats">'+pv.stats+'</div></div>'+
+    '<div class="friend-row-actions">'+actionsHtml+'</div></div>';
 }
-
 function renderFriends(){
   var list = document.getElementById('friends-list');
-  if(!friends.length){
-    list.innerHTML = '<div class="friends-empty">No friends yet — add a trainer\'s<br/>username above to see their collection.</div>';
-    return;
-  }
-  list.innerHTML = friends.map(function(username){
-    var snap = getUserSaveSnapshot(username);
-    if(!snap){
-      return '<div class="friend-row" onclick="removeFriend(\''+username+'\')">'+
-        '<div class="friend-row-info"><div class="friend-row-name">'+username+'</div>'+
-        '<div class="friend-row-stats">No save data found (click to remove)</div></div></div>';
+  if(!currentUser){ list.innerHTML = '<div class="friends-empty">Sign in to use friends.</div>'; return; }
+  var html = '';
+  var q = (friendQuery||'').trim().toLowerCase();
+  var incoming = friendIncoming(), outgoing = friendOutgoing();
+
+  // 1) Search results
+  if(q){
+    var matches = Object.keys(getUsers()).filter(function(u){ return !friendEq(u,currentUser) && u.toLowerCase().indexOf(q) >= 0; }).slice(0,6);
+    html += '<div class="friends-section-title">Search results</div>';
+    if(!matches.length){
+      html += '<div class="friends-empty" style="padding:.8rem">No trainer matching "'+mpEsc(friendQuery.trim())+'" found on this device.</div>';
+    } else {
+      matches.forEach(function(u){
+        var act;
+        if(isFriend(u)) act = '<button class="friend-act" disabled>✓ Friends</button>';
+        else if(friendHas(incoming,u)) act = '<button class="friend-act ok" onclick="acceptFriendRequest('+fnArg(u)+')">Accept request</button>';
+        else if(friendHas(outgoing,u)) act = '<button class="friend-act" disabled>Request sent</button>';
+        else act = '<button class="friend-act primary" onclick="sendFriendRequest('+fnArg(u)+')">Send friend request</button>';
+        html += friendRowHtml(u, act);
+      });
     }
-    var previewIds = (snap.party.length ? snap.party : snap.caught.map(function(_,i){return i;})).slice(0,3)
-      .map(function(idx){ return snap.caught[idx]; }).filter(Boolean);
-    var spritesHtml = previewIds.map(function(p){
-      return '<img src="'+spriteUrl(p.id,p.shiny)+'" onerror="'+spriteOnerror(p.id,p.shiny)+'"/>';
-    }).join('');
-    return '<div class="friend-row" onclick="openFriendCard(\''+username+'\')">'+
-      '<div class="friend-row-sprites">'+spritesHtml+'</div>'+
-      '<div class="friend-row-info">'+
-        '<div class="friend-row-name">'+username+'</div>'+
-        '<div class="friend-row-stats">'+snap.uniqueCount+' seen · '+snap.caught.length+' caught · '+snap.shinyCount+' ✨</div>'+
-      '</div>'+
-      '<div class="friend-row-remove" onclick="removeFriend(\''+username+'\',event)" title="Remove friend">✕</div>'+
-    '</div>';
-  }).join('');
+  }
+  // 2) Incoming requests (the "notification")
+  if(incoming.length){
+    html += '<div class="friends-section-title">Friend requests <span class="cnt">'+incoming.length+'</span></div>';
+    incoming.forEach(function(u){
+      html += friendRowHtml(u,
+        '<button class="friend-act ok" onclick="acceptFriendRequest('+fnArg(u)+')">Accept</button>'+
+        '<button class="friend-act no" onclick="declineFriendRequest('+fnArg(u)+')">Decline</button>', {request:true});
+    });
+  }
+  // 3) Sent, still pending
+  if(outgoing.length){
+    html += '<div class="friends-section-title">Sent requests</div>';
+    outgoing.forEach(function(u){
+      html += friendRowHtml(u, '<button class="friend-act no" onclick="cancelFriendRequest('+fnArg(u)+')">Cancel</button>');
+    });
+  }
+  // 4) Friends
+  if(friends.length){
+    html += '<div class="friends-section-title">Your friends ('+friends.length+')</div>';
+    friends.forEach(function(u){
+      html += friendRowHtml(u, '<div class="friend-row-remove" onclick="removeFriend('+fnArg(u)+',event)" title="Remove friend">✕</div>', {card:true});
+    });
+  } else if(!q && !incoming.length && !outgoing.length){
+    html += '<div class="friends-empty">No friends yet — search for a trainer\'s<br/>username above and send them a friend request.</div>';
+  }
+  list.innerHTML = html;
 }
 
 function openFriendCard(username){
@@ -8714,7 +9374,7 @@ function openFriendCard(username){
   var modal = document.getElementById('friend-card-modal');
   if(!snap){
     modal.innerHTML = '<span class="friend-card-close" onclick="closeFriendCard()">✕</span>'+
-      '<div class="friend-card-name">'+username.toUpperCase()+'</div>'+
+      '<div class="friend-card-name">'+mpEsc(username.toUpperCase())+'</div>'+
       '<div class="friend-card-sub">No save data found for this trainer.</div>';
   } else {
     var partySlots = (snap.party.length ? snap.party : snap.caught.map(function(_,i){return i;})).slice(0,6)
@@ -8728,7 +9388,7 @@ function openFriendCard(username){
     }).join('');
     modal.innerHTML =
       '<span class="friend-card-close" onclick="closeFriendCard()">✕</span>'+
-      '<div class="friend-card-name">'+username.toUpperCase()+'</div>'+
+      '<div class="friend-card-name">'+mpEsc(username.toUpperCase())+'</div>'+
       '<div class="friend-card-sub">Trainer on this device</div>'+
       '<div class="friend-card-stats">'+
         '<div class="friend-card-stat"><div class="val">'+snap.uniqueCount+'</div><div class="lbl">Seen</div></div>'+
@@ -14142,6 +14802,8 @@ function loginAs(username) {
   currentUser = username;
   try { localStorage.setItem('pgcc_session', username); } catch(e) {}
   loadUserData(username);
+  friendKnownIncoming = null;
+  setTimeout(function(){ try{ friendProcessMail(true); }catch(e){} }, 1500); // announce accepted/pending requests after the app appears
 
   // Fade out auth overlay, then show app
   var ao = document.getElementById('auth-overlay');
@@ -14594,7 +15256,8 @@ function doLogout() {
   save(); // save before logout
   currentUser = null;
   try { localStorage.removeItem('pgcc_session'); } catch(e) {}
-  caught = []; party = [];
+  caught = []; party = []; friends = []; dexSeen = {}; friendKnownIncoming = null;
+  updateFriendsBadge();
   var wrap = document.getElementById('user-bar-wrap');
   if (wrap) wrap.remove();
   // Show auth overlay again
@@ -14632,6 +15295,24 @@ loadSavedTheme();
 
 // Initialize auth last — it will load user data and then run initStarterMenu
 initAuth();
+
+// Opened via a friend's invite link (?raid=CODE): once logged in, offer to join.
+(function(){
+  var code = null;
+  try{ code = new URLSearchParams(location.search).get('raid'); }catch(e){}
+  if(!code) return;
+  var tries = 0;
+  var iv = setInterval(function(){
+    tries++;
+    var auth = document.getElementById('auth-overlay');
+    var boot = document.getElementById('boot-overlay');
+    var authHidden = !auth || getComputedStyle(auth).display === 'none';
+    var bootGone = !boot || boot.style.display === 'none';
+    if(authHidden && bootGone){ clearInterval(iv); openJoinRaid(code); }
+    if(tries > 600) clearInterval(iv);
+  }, 1000);
+})();
+
 
 // Belt-and-suspenders: delegated click listener on the party container.
 // If a click lands anywhere inside #party-slots (on any child element),
