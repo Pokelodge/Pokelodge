@@ -9,6 +9,9 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Serif+Display:ital@0;1&family=Press+Start+2P&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1662,6 +1665,14 @@ footer a{color:var(--navy);text-decoration:none}
 .friend-row.request{border-color:#f5a623;background:#fff8e6}
 .friend-row-actions{display:flex;gap:6px;align-items:center}
 
+
+.fm{font-size:12px;padding:8px 12px;margin:0 1.4rem;border-radius:8px;background:#eef6ee;color:#1e6b3a}
+.fm.off{background:#f2f2f2;color:#666}
+.fm.warn{background:#fff3e0;color:#8a5a00}
+.fm-pw{display:flex;gap:6px;margin:6px 1.4rem 0}
+.fm-pw input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px}
+.fm-pw button{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:12.5px;cursor:pointer}
+
 /* FRIENDS LIST */
 .friends-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;display:none;align-items:center;justify-content:center;padding:1rem}
 .friends-overlay.show{display:flex}
@@ -1932,9 +1943,10 @@ footer a{color:var(--navy);text-decoration:none}
       <span>👥 FRIENDS</span>
       <span class="friends-close" onclick="closeFriends()">✕</span>
     </div>
+    <div id="friends-mode"></div>
     <div class="friends-add-row">
-      <input type="text" id="friends-add-input" placeholder="Search for a trainer by username..." oninput="friendQuery=this.value;renderFriends()" autocomplete="off"/>
-      <button onclick="friendQuery=document.getElementById('friends-add-input').value;renderFriends()">Search</button>
+      <input type="text" id="friends-add-input" placeholder="Search for a trainer by username..." oninput="friendQuery=this.value;friendSearchNow()" autocomplete="off"/>
+      <button onclick="friendQuery=document.getElementById('friends-add-input').value;friendSearchNow()">Search</button>
     </div>
     <div id="friends-add-msg" class="friends-add-msg"></div>
     <div id="friends-list" class="friends-list"></div>
@@ -7779,6 +7791,7 @@ function save(){
       pokedollars:pokedollars, inventory:inventory, dexSeen:dexSeen, friends:friends
     }));
   }catch(e){}
+  cloudScheduleCardPush();
 }
 
 /* ══════════════════ DYNAMAX RAID SYSTEM ══════════════════ */
@@ -9154,6 +9167,305 @@ function getUserSaveSnapshot(username){
   }catch(e){ return null; }
 }
 
+/* ══════════════════ ONLINE FRIENDS (optional Firebase backend) ══════════════════
+   Paste your Firebase web config below (see FIREBASE_SETUP.md). Leave it blank and the
+   game keeps using the device-only friends system. When configured:
+     • Firebase Auth   – your username + password create/sign in to an online account
+     • Firestore       – username claims, public trainer cards, and friend requests
+   The apiKey is not a secret; Firestore security rules (firestore.rules) protect the data. */
+var CLOUD_CONFIG = { apiKey:'AIzaSyBwaE6065h6kSWOdULxLD2Xb0-_UJ7z-C4', authDomain:'pokelodge-2ba15.firebaseapp.com', projectId:'pokelodge-2ba15', appId:'1:65287571415:web:6888f0c20c8977b5b72d92' };
+var CLOUD_EMAIL_DOMAIN = 'pokelodge.local'; // hidden login emails look like name-ab12cd@pokelodge.local
+var cloud = { app:null, auth:null, db:null, status:'off', msg:'', uid:null, name:null, online:false,
+  unsubs:[], reqIn:[], reqOut:[], byLower:{}, cards:{}, nameByUid:{}, seenIn:false, seenOut:false,
+  search:{q:'', results:[], busy:false, timer:null, error:''}, pushTimer:null, renderTimer:null, modeSig:'' };
+
+function cloudConfigured(){ return !!(CLOUD_CONFIG.apiKey && CLOUD_CONFIG.projectId && CLOUD_CONFIG.appId && typeof firebase !== 'undefined'); }
+function cloudInit(){
+  if(cloud.app) return;
+  cloud.app = (firebase.apps && firebase.apps.length) ? firebase.app() : firebase.initializeApp(CLOUD_CONFIG);
+  cloud.auth = firebase.auth(); cloud.db = firebase.firestore();
+}
+function cloudErrText(e){ return (e && (e.code || e.message)) || 'error'; }
+function cloudRefreshUi(){
+  updateFriendsBadge();
+  var ov = document.getElementById('friends-overlay');
+  if(ov && ov.classList.contains('show')) renderFriends(); else renderFriendsMode();
+}
+function cloudRenderSoon(){ clearTimeout(cloud.renderTimer); cloud.renderTimer = setTimeout(cloudRefreshUi, 120); }
+function friendSay(t, cls){
+  var m = document.getElementById('friends-add-msg'); if(!m) return;
+  m.textContent = t; m.className = 'friends-add-msg '+(cls||'');
+}
+
+/* ── connect / disconnect ── */
+async function cloudConnect(username, password){
+  if(!cloudConfigured()){ cloud.status = 'off'; return false; }
+  cloudDetach();
+  cloud.status = 'connecting'; cloud.msg = ''; cloudRefreshUi();
+  try{
+    cloudInit();
+    var lower = username.toLowerCase();
+    var claimRef = cloud.db.collection('usernames').doc(lower);
+    var claim = await claimRef.get();
+    var user;
+    if(claim.exists){
+      if(password){
+        try{ user = (await cloud.auth.signInWithEmailAndPassword(claim.data().email, password)).user; }
+        catch(e){
+          cloud.status = 'error';
+          cloud.msg = 'The username "'+username+'" is already registered online with a different password (or belongs to someone else), so online friends are off for this account.';
+          cloudRefreshUi(); return false;
+        }
+      } else {
+        var cur = cloud.auth.currentUser;
+        if(cur && cur.email === claim.data().email) user = cur;
+        else { cloud.status = 'needs-password'; cloud.msg = ''; cloudRefreshUi(); return false; }
+      }
+    } else {
+      if(!password){ cloud.status = 'needs-password'; cloud.msg = ''; cloudRefreshUi(); return false; }
+      var email = lower+'-'+Math.random().toString(36).slice(2,8)+'@'+CLOUD_EMAIL_DOMAIN;
+      user = (await cloud.auth.createUserWithEmailAndPassword(email, password)).user;
+      try{ await claimRef.set({uid:user.uid, name:username, email:email}); }
+      catch(e){
+        try{ await user.delete(); }catch(_){}
+        cloud.status = 'error'; cloud.msg = 'That username was just taken online by someone else.';
+        cloudRefreshUi(); return false;
+      }
+    }
+    await cloudAttach(user, username);
+    return true;
+  }catch(e){
+    cloud.status = 'error';
+    cloud.msg = 'Could not reach the online service ('+cloudErrText(e)+'). Friends work on this device only for now.';
+    cloudRefreshUi(); return false;
+  }
+}
+// Resume a saved Firebase session (no password needed) after a page reload.
+function cloudRestore(name){
+  if(!cloudConfigured()) return;
+  try{ cloudInit(); }catch(e){ return; }
+  cloud.status = 'connecting'; cloudRefreshUi();
+  var un = cloud.auth.onAuthStateChanged(function(u){
+    un();
+    if(!u){ cloud.status = 'needs-password'; cloudRefreshUi(); return; }
+    cloud.db.collection('usernames').doc(name.toLowerCase()).get().then(function(c){
+      if(c.exists && c.data().email === u.email) cloudAttach(u, name);
+      else { cloud.status = 'needs-password'; cloudRefreshUi(); }
+    }).catch(function(e){ cloud.status = 'error'; cloud.msg = 'Could not reach the online service ('+cloudErrText(e)+').'; cloudRefreshUi(); });
+  });
+}
+async function cloudAttach(user, name){
+  cloud.uid = user.uid; cloud.name = name;
+  await cloudPushCard();
+  cloudStartListeners();
+  cloud.online = true; cloud.status = 'online'; cloud.msg = '';
+  cloudRefreshUi();
+}
+function cloudDetach(){
+  cloud.unsubs.forEach(function(u){ try{u();}catch(e){} });
+  cloud.unsubs = []; cloud.reqIn = []; cloud.reqOut = []; cloud.seenIn = cloud.seenOut = false;
+  cloud.online = false; cloud.uid = null; cloud.name = null;
+  cloud.search = {q:'', results:[], busy:false, timer:null, error:''};
+  clearTimeout(cloud.pushTimer);
+}
+function cloudDisconnect(){
+  cloudDetach();
+  try{ if(cloud.auth) cloud.auth.signOut(); }catch(e){}
+  cloud.status = 'off'; cloud.msg = '';
+}
+function cloudSignInFromPanel(){
+  var el = document.getElementById('friends-cloud-pw');
+  var pw = el ? el.value : '';
+  if(!pw || !currentUser) return;
+  cloudConnect(currentUser, pw);
+}
+
+/* ── public trainer card ── */
+function cloudBuildCard(){
+  var idxs = (party && party.length ? party : caught.map(function(_,i){return i;})).slice(0,6);
+  var seen = {}; Object.keys(dexSeen||{}).forEach(function(k){ seen[k]=1; }); caught.forEach(function(p){ seen[p.id]=1; });
+  return {
+    uniqueCount: Object.keys(seen).length, caughtCount: caught.length,
+    shinyCount: caught.filter(function(p){return p.shiny;}).length,
+    legendCount: caught.filter(function(p){return p.legendary;}).length,
+    party: idxs.map(function(i){return caught[i];}).filter(Boolean).map(function(p){
+      return {id:p.id, name:String(p.name||POKE_NAMES[p.id]||'').slice(0,20), shiny:!!p.shiny, level:levelFromXp(p.xp||0).level};
+    })
+  };
+}
+async function cloudPushCard(){
+  if(!cloud.uid || !cloud.db) return;
+  try{
+    await cloud.db.collection('profiles').doc(cloud.uid).set(
+      {name:cloud.name, lower:cloud.name.toLowerCase(), card:cloudBuildCard(), updatedAt:Date.now()}, {merge:true});
+  }catch(e){}
+}
+function cloudScheduleCardPush(){
+  if(!cloud.online) return;
+  clearTimeout(cloud.pushTimer); cloud.pushTimer = setTimeout(cloudPushCard, 4000);
+}
+
+/* ── live friend-request data ── */
+function cloudStartListeners(){
+  var col = cloud.db.collection('friendRequests');
+  cloud.seenIn = cloud.seenOut = false; cloud.reqIn = []; cloud.reqOut = [];
+  cloud.unsubs.push(col.where('to','==',cloud.uid).onSnapshot(function(s){ cloudOnRequests('in', s); }, cloudListenError));
+  cloud.unsubs.push(col.where('from','==',cloud.uid).onSnapshot(function(s){ cloudOnRequests('out', s); }, cloudListenError));
+}
+function cloudListenError(e){ cloud.msg = 'Lost the online connection ('+cloudErrText(e)+').'; cloudRefreshUi(); }
+function cloudOnRequests(kind, snap){
+  var list = snap.docs.map(function(d){ var x = d.data(); x.id = d.id; return x; });
+  var first = (kind === 'in') ? !cloud.seenIn : !cloud.seenOut;
+  if(kind === 'in'){ cloud.reqIn = list; cloud.seenIn = true; } else { cloud.reqOut = list; cloud.seenOut = true; }
+  snap.docChanges().forEach(function(ch){
+    var x = ch.doc.data();
+    if(!first && kind === 'in' && ch.type === 'added' && x.status === 'pending') showToast('👥 '+x.fromName+' sent you a friend request!');
+    if(!first && kind === 'out' && ch.type === 'modified' && x.status === 'accepted') showToast('🎉 '+x.toName+' accepted your friend request!');
+  });
+  if(first && kind === 'in'){
+    var n = list.filter(function(r){return r.status==='pending';}).length;
+    if(n) showToast('👥 You have '+n+' pending friend request'+(n>1?'s':'')+'!');
+  }
+  cloudSyncFriends();
+}
+function cloudOther(r){ // the other person in a request doc, as {uid,name}
+  var mine = r.from === cloud.uid, uid = mine ? r.to : r.from;
+  return { uid:uid, name: cloud.nameByUid[uid] || (mine ? r.toName : r.fromName) };
+}
+function cloudSyncFriends(){
+  var names = [], seen = {}, uids = {};
+  cloud.reqIn.concat(cloud.reqOut).forEach(function(r){
+    var o = cloudOther(r);
+    cloud.byLower[o.name.toLowerCase()] = {uid:o.uid, name:o.name};
+    uids[o.uid] = 1;
+    if(r.status === 'accepted' && !seen[o.uid]){ seen[o.uid] = 1; names.push(o.name); }
+  });
+  friends = names; save();
+  Object.keys(uids).forEach(cloudFetchCard);
+  cloudRefreshUi();
+}
+function cloudFetchCard(uid){
+  return cloud.db.collection('profiles').doc(uid).get().then(function(d){
+    if(!d.exists) return;
+    var x = d.data(), renamed = cloud.nameByUid[uid] !== undefined && cloud.nameByUid[uid] !== x.name;
+    cloud.nameByUid[uid] = x.name; cloud.cards[uid] = x.card || null;
+    cloud.byLower[String(x.name).toLowerCase()] = {uid:uid, name:x.name};
+    if(renamed) cloudSyncFriends(); else cloudRenderSoon();
+  }).catch(function(){});
+}
+function friendCard(username){ // normalized public card for a friend/search result, or null
+  if(cloud.online){
+    var e = cloud.byLower[String(username).toLowerCase()];
+    return (e && cloud.cards[e.uid]) || null;
+  }
+  var snap = getUserSaveSnapshot(username);
+  if(!snap) return null;
+  var idxs = (snap.party.length ? snap.party : snap.caught.map(function(_,i){return i;})).slice(0,6);
+  return { uniqueCount:snap.uniqueCount, caughtCount:snap.caught.length, shinyCount:snap.shinyCount, legendCount:snap.legendCount,
+    party: idxs.map(function(i){return snap.caught[i];}).filter(Boolean).map(function(p){
+      return {id:p.id, name:p.name||POKE_NAMES[p.id]||'???', shiny:!!p.shiny, level:levelFromXp(p.xp||0).level};
+    }) };
+}
+
+/* ── search ── */
+function friendSearchNow(){
+  var q = (friendQuery||'').trim();
+  if(cloud.online) cloudSearch(q);
+  renderFriends();
+}
+function cloudSearch(q){
+  clearTimeout(cloud.search.timer);
+  cloud.search.q = q; cloud.search.error = '';
+  if(!q){ cloud.search.results = []; cloud.search.busy = false; return; }
+  cloud.search.busy = true;
+  cloud.search.timer = setTimeout(function(){
+    var lq = q.toLowerCase();
+    cloud.db.collection('profiles').orderBy('lower').startAt(lq).endAt(lq+'\uf8ff').limit(8).get().then(function(s){
+      if(cloud.search.q !== q) return;
+      cloud.search.results = [];
+      s.docs.forEach(function(d){
+        if(d.id === cloud.uid) return;
+        var x = d.data();
+        cloud.byLower[x.lower] = {uid:d.id, name:x.name}; cloud.cards[d.id] = x.card || null; cloud.nameByUid[d.id] = x.name;
+        cloud.search.results.push(x.name);
+      });
+      cloud.search.busy = false; renderFriends();
+    }).catch(function(e){ cloud.search.busy = false; cloud.search.error = cloudErrText(e); renderFriends(); });
+  }, 250);
+}
+
+/* ── actions ── */
+function cloudSendRequest(name){
+  var t = cloud.byLower[String(name).toLowerCase()];
+  if(!t){ friendSay('That trainer could not be found.','error'); return; }
+  if(t.uid === cloud.uid){ friendSay("You can't add yourself!",'error'); return; }
+  if(isFriend(t.name)){ friendSay('You are already friends with '+t.name+'.','error'); return; }
+  var inc = cloud.reqIn.filter(function(r){ return r.from === t.uid && r.status === 'pending'; })[0];
+  if(inc){ cloudAccept(inc); return; } // they already asked you — just accept
+  if(cloud.reqOut.some(function(r){ return r.to === t.uid; })){ friendSay('Request already sent to '+t.name+'.','error'); return; }
+  cloud.db.collection('friendRequests').doc(cloud.uid+'_'+t.uid).set({
+    from:cloud.uid, to:t.uid, fromName:cloud.name, toName:t.name, status:'pending',
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){ friendSay('Friend request sent to '+t.name+'!','ok'); })
+    .catch(function(e){ friendSay('Could not send the request ('+cloudErrText(e)+').','error'); });
+}
+function cloudAccept(req){
+  var o = cloudOther(req);
+  cloud.db.collection('friendRequests').doc(req.id).update({status:'accepted'})
+    .then(function(){ friendSay('You and '+o.name+' are now friends!','ok'); })
+    .catch(function(e){ friendSay('Could not accept ('+cloudErrText(e)+').','error'); });
+}
+function cloudDeleteWith(name, pred){
+  var t = cloud.byLower[String(name).toLowerCase()]; if(!t) return;
+  cloud.reqIn.concat(cloud.reqOut).filter(function(r){ return cloudOther(r).uid === t.uid && pred(r); }).forEach(function(r){
+    cloud.db.collection('friendRequests').doc(r.id).delete().catch(function(e){ friendSay('Could not update ('+cloudErrText(e)+').','error'); });
+  });
+}
+
+/* ── account changes ── */
+async function cloudRename(newName){
+  if(!cloud.online) return true;
+  var oldLower = cloud.name.toLowerCase(), newLower = newName.toLowerCase();
+  try{
+    var users = cloud.db.collection('usernames'), oldRef = users.doc(oldLower);
+    var email = (await oldRef.get()).data().email;
+    var b = cloud.db.batch();
+    if(oldLower !== newLower){ b.delete(oldRef); }
+    b.set(users.doc(newLower), {uid:cloud.uid, name:newName, email:email});
+    b.set(cloud.db.collection('profiles').doc(cloud.uid), {name:newName, lower:newLower}, {merge:true});
+    await b.commit();
+    cloud.name = newName;
+    return true;
+  }catch(e){
+    return 'That username is already taken online, or could not be changed ('+cloudErrText(e)+').';
+  }
+}
+async function cloudChangePassword(cur, nw){
+  try{
+    var user = cloud.auth.currentUser;
+    await user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, cur));
+    await user.updatePassword(nw);
+    return true;
+  }catch(e){ return cloudErrText(e); }
+}
+
+/* ── status banner at the top of the Friends panel ── */
+function renderFriendsMode(){
+  var el = document.getElementById('friends-mode'); if(!el) return;
+  var s = cloudConfigured() ? cloud.status : 'off', sig = s+'|'+cloud.msg;
+  if(sig === cloud.modeSig) return; // don't rebuild while someone is typing their password
+  cloud.modeSig = sig;
+  var h;
+  if(s === 'online') h = '<div class="fm on">🌐 Online — friend requests work across devices.</div>';
+  else if(s === 'connecting') h = '<div class="fm">Connecting to online friends…</div>';
+  else if(s === 'needs-password' || s === 'error'){
+    h = '<div class="fm warn">'+mpEsc(cloud.msg || 'Enter your password to turn on online friends.')+'</div>'+
+        '<div class="fm-pw"><input type="password" id="friends-cloud-pw" placeholder="Your password" onkeydown="if(event.key===\'Enter\')cloudSignInFromPanel()"/>'+
+        '<button onclick="cloudSignInFromPanel()">Go online</button></div>';
+  } else h = '<div class="fm off">📴 Friends work on this device only.</div>';
+  el.innerHTML = h;
+}
+
 /* ── Friend requests ──
    Requests live in one shared inbox key (not inside anyone's save file) so a request
    sent from one tab/account can't be overwritten by the recipient's own autosaves.
@@ -9178,11 +9490,13 @@ function friendCanon(name){
 }
 function isFriend(name){ return friendHas(friends, name); }
 function friendIncoming(){
+  if(cloud.online) return cloud.reqIn.filter(function(r){return r.status==='pending';}).map(function(r){return cloudOther(r).name;});
   if(!currentUser) return [];
   var m = friendMailRead(), b = m[currentUser.toLowerCase()];
   return (b && Array.isArray(b.requests)) ? b.requests.slice() : [];
 }
 function friendOutgoing(){
+  if(cloud.online) return cloud.reqOut.filter(function(r){return r.status==='pending';}).map(function(r){return cloudOther(r).name;});
   if(!currentUser) return [];
   var m = friendMailRead(), out = [];
   Object.keys(m).forEach(function(k){
@@ -9232,6 +9546,7 @@ function friendProcessMail(announce){
 window.addEventListener('storage', function(e){ if(e.key === FRIEND_MAIL_KEY) friendProcessMail(true); });
 
 function sendFriendRequest(name){
+  if(cloud.online){ cloudSendRequest(name); return; }
   var canon = friendCanon(name);
   var msg = document.getElementById('friends-add-msg');
   function say(t, cls){ msg.textContent = t; msg.className = 'friends-add-msg '+(cls||''); }
@@ -9248,6 +9563,11 @@ function sendFriendRequest(name){
   renderFriends();
 }
 function acceptFriendRequest(name){
+  if(cloud.online){
+    var r = cloud.reqIn.filter(function(x){return x.status==='pending' && cloudOther(x).name.toLowerCase()===String(name).toLowerCase();})[0];
+    if(r) cloudAccept(r);
+    return;
+  }
   var canon = friendCanon(name) || name;
   var m = friendMailRead(), mine = friendBox(m,currentUser), theirs = friendBox(m,canon);
   mine.requests = friendWithout(mine.requests, canon);
@@ -9262,6 +9582,7 @@ function acceptFriendRequest(name){
   updateFriendsBadge(); renderFriends();
 }
 function declineFriendRequest(name){
+  if(cloud.online){ cloudDeleteWith(name, function(r){return r.to===cloud.uid && r.status==='pending';}); return; }
   var m = friendMailRead(), mine = friendBox(m,currentUser);
   mine.requests = friendWithout(mine.requests, name);
   friendMailWrite(m);
@@ -9269,6 +9590,7 @@ function declineFriendRequest(name){
   updateFriendsBadge(); renderFriends();
 }
 function cancelFriendRequest(name){
+  if(cloud.online){ cloudDeleteWith(name, function(r){return r.from===cloud.uid && r.status==='pending';}); return; }
   var m = friendMailRead(), theirs = friendBox(m,name);
   theirs.requests = friendWithout(theirs.requests, currentUser);
   friendMailWrite(m);
@@ -9276,6 +9598,7 @@ function cancelFriendRequest(name){
 }
 function removeFriend(username, ev){
   if(ev) ev.stopPropagation();
+  if(cloud.online){ cloudDeleteWith(username, function(r){return r.status==='accepted';}); return; }
   friends = friendWithout(friends, username);
   // Friendship is mutual, so let them know to drop us too.
   var m = friendMailRead(), theirs = friendBox(m, username);
@@ -9289,7 +9612,9 @@ function openFriends(){
   friendQuery = '';
   document.getElementById('friends-add-input').value = '';
   document.getElementById('friends-add-msg').textContent = '';
+  cloud.modeSig = '\u0000'; // force the status banner to redraw
   friendProcessMail(false);
+  renderFriendsMode();
   renderFriends();
   document.getElementById('friends-overlay').classList.add('show');
 }
@@ -9298,13 +9623,12 @@ function closeFriends(){
 }
 
 function friendPreviewHtml(username){
-  var snap = getUserSaveSnapshot(username);
-  if(!snap) return {sprites:'', stats:'No save data yet'};
-  var ids = (snap.party.length ? snap.party : snap.caught.map(function(_,i){return i;})).slice(0,3)
-    .map(function(idx){ return snap.caught[idx]; }).filter(Boolean);
+  var card = friendCard(username);
+  if(!card) return {sprites:'', stats: cloud.online ? 'Trainer card not loaded yet' : 'No save data yet'};
+  var ids = card.party.slice(0,3);
   return {
     sprites: ids.map(function(p){ return '<img src="'+spriteUrl(p.id,p.shiny)+'" onerror="'+spriteOnerror(p.id,p.shiny)+'"/>'; }).join(''),
-    stats: snap.uniqueCount+' seen · '+snap.caught.length+' caught · '+snap.shinyCount+' ✨'
+    stats: card.uniqueCount+' seen · '+card.caughtCount+' caught · '+card.shinyCount+' ✨'
   };
 }
 function friendRowHtml(username, actionsHtml, opts){
@@ -9326,10 +9650,17 @@ function renderFriends(){
 
   // 1) Search results
   if(q){
-    var matches = Object.keys(getUsers()).filter(function(u){ return !friendEq(u,currentUser) && u.toLowerCase().indexOf(q) >= 0; }).slice(0,6);
     html += '<div class="friends-section-title">Search results</div>';
+    if(cloud.online && cloud.search.error){
+      html += '<div class="friends-empty" style="padding:.8rem">Search failed: '+mpEsc(cloud.search.error)+'</div>';
+    } else if(cloud.online && cloud.search.busy && !cloud.search.results.length){
+      html += '<div class="friends-empty" style="padding:.8rem">Searching…</div>';
+    } else {
+    var matches = cloud.online
+      ? cloud.search.results.slice()
+      : Object.keys(getUsers()).filter(function(u){ return !friendEq(u,currentUser) && u.toLowerCase().indexOf(q) >= 0; }).slice(0,6);
     if(!matches.length){
-      html += '<div class="friends-empty" style="padding:.8rem">No trainer matching "'+mpEsc(friendQuery.trim())+'" found on this device.</div>';
+      html += '<div class="friends-empty" style="padding:.8rem">No trainer matching "'+mpEsc(friendQuery.trim())+'" found'+(cloud.online?' online':' on this device')+'.</div>';
     } else {
       matches.forEach(function(u){
         var act;
@@ -9339,6 +9670,7 @@ function renderFriends(){
         else act = '<button class="friend-act primary" onclick="sendFriendRequest('+fnArg(u)+')">Send friend request</button>';
         html += friendRowHtml(u, act);
       });
+    }
     }
   }
   // 2) Incoming requests (the "notification")
@@ -9364,36 +9696,48 @@ function renderFriends(){
       html += friendRowHtml(u, '<div class="friend-row-remove" onclick="removeFriend('+fnArg(u)+',event)" title="Remove friend">✕</div>', {card:true});
     });
   } else if(!q && !incoming.length && !outgoing.length){
-    html += '<div class="friends-empty">No friends yet — search for a trainer\'s<br/>username above and send them a friend request.</div>';
+    html += '<div class="friends-empty">No friends yet — search for a trainer\'s<br/>username above and send them a friend request'+(cloud.online?'':' (device-only until you go online — see the banner above)')+'.</div>';
   }
   list.innerHTML = html;
+  renderFriendsMode();
 }
 
 function openFriendCard(username){
-  var snap = getUserSaveSnapshot(username);
+  if(cloud.online){
+    var e = cloud.byLower[String(username).toLowerCase()];
+    // Refresh this one friend's card in the background; re-render in place if
+    // the card is still open when it lands (avoids a stale/cached snapshot).
+    if(e) cloudFetchCard(e.uid).then(function(){
+      var ov = document.getElementById('friend-card-overlay');
+      if(ov && ov.classList.contains('show') && cloud.__openCard === username) renderFriendCardNow(username);
+    });
+  }
+  cloud.__openCard = username;
+  renderFriendCardNow(username);
+  document.getElementById('friend-card-overlay').classList.add('show');
+}
+function renderFriendCardNow(username){
+  var card = friendCard(username);
   var modal = document.getElementById('friend-card-modal');
-  if(!snap){
+  if(!card){
     modal.innerHTML = '<span class="friend-card-close" onclick="closeFriendCard()">✕</span>'+
       '<div class="friend-card-name">'+mpEsc(username.toUpperCase())+'</div>'+
-      '<div class="friend-card-sub">No save data found for this trainer.</div>';
+      '<div class="friend-card-sub">'+(cloud.online?"Trainer card hasn't loaded yet — try again in a moment.":'No save data found for this trainer.')+'</div>';
   } else {
-    var partySlots = (snap.party.length ? snap.party : snap.caught.map(function(_,i){return i;})).slice(0,6)
-      .map(function(idx){ return snap.caught[idx]; }).filter(Boolean);
-    var partyHtml = partySlots.map(function(p){
-      var lvl = levelFromXp(p.xp||0).level;
+    var partyHtml = card.party.slice(0,6).map(function(p){
       return '<div class="friend-card-party-slot">'+
         '<img src="'+spriteUrl(p.id,p.shiny)+'" onerror="'+spriteOnerror(p.id,p.shiny)+'"/>'+
-        '<div class="lv">'+(p.name||POKE_NAMES[p.id]||'???')+' Lv'+lvl+'</div>'+
+        '<div class="lv">'+mpEsc(p.name)+' Lv'+p.level+'</div>'+
       '</div>';
     }).join('');
     modal.innerHTML =
       '<span class="friend-card-close" onclick="closeFriendCard()">✕</span>'+
       '<div class="friend-card-name">'+mpEsc(username.toUpperCase())+'</div>'+
-      '<div class="friend-card-sub">Trainer on this device</div>'+
+      '<div class="friend-card-sub">'+(cloud.online?'Online trainer':'Trainer on this device')+'</div>'+
       '<div class="friend-card-stats">'+
-        '<div class="friend-card-stat"><div class="val">'+snap.uniqueCount+'</div><div class="lbl">Seen</div></div>'+
-        '<div class="friend-card-stat"><div class="val">'+snap.shinyCount+'</div><div class="lbl">Shiny</div></div>'+
-        '<div class="friend-card-stat"><div class="val">'+snap.legendCount+'</div><div class="lbl">Legendary</div></div>'+
+        '<div class="friend-card-stat"><div class="val">'+card.uniqueCount+'</div><div class="lbl">Seen</div></div>'+
+        '<div class="friend-card-stat"><div class="val">'+card.shinyCount+'</div><div class="lbl">Shiny</div></div>'+
+        '<div class="friend-card-stat"><div class="val">'+card.legendCount+'</div><div class="lbl">Legendary</div></div>'+
       '</div>'+
       '<div class="friend-card-party-label">Party</div>'+
       '<div class="friend-card-party">'+(partyHtml || '<span style="font-size:12px;color:var(--muted)">No Pokémon yet</span>')+'</div>';
@@ -13963,6 +14307,9 @@ function confirmStarter() {
     isStarter: true,
     starterGen: s.gen,
   };
+  // The special Pikachu & Eevee starters come with the Gigantamax Factor already
+  // unlocked (matching their real-game "Kanto Special" starter status).
+  if(canGigantamax(s.id)) entry.gmaxFactor = true;
   caught.push(entry);
   party.push(0); // starter always goes slot 0
   save();
@@ -14778,7 +15125,7 @@ function doRegister() {
   // Disable the button so it's clear something is happening, not frozen
   var regBtn = document.querySelector('#auth-register-form .auth-btn');
   if(regBtn){ regBtn.disabled = true; regBtn.textContent = 'Signing you in...'; }
-  setTimeout(function() { loginAs(username); }, 300);
+  setTimeout(function() { loginAs(username); cloudConnect(username, pass); }, 300);
 }
 
 function doLogin() {
@@ -14796,6 +15143,7 @@ function doLogin() {
     return;
   }
   loginAs(record.displayName || username);
+  cloudConnect(record.displayName || username, pass);
 }
 
 function loginAs(username) {
@@ -15189,12 +15537,18 @@ function saveUsernameChange(){
     }
   }catch(e){}
 
+  var oldNameForCloud = currentUser;
   currentUser = newName;
   try{ localStorage.setItem('pgcc_session', newName); }catch(e){}
 
   closeAccountModal();
   renderUserBar(newName);
   showToast('Username changed to ' + newName + '!');
+  if(cloud.online){
+    cloudRename(newName).then(function(res){
+      if(res !== true){ currentUser = oldNameForCloud; showToast('⚠️ Local rename kept, but online: '+res); }
+    });
+  }
 }
 
 /* ===== CHANGE PASSWORD ===== */
@@ -15249,11 +15603,17 @@ function savePasswordChange(){
   saveUsers(users);
   closeAccountModal();
   showToast('Password updated!');
+  if(cloud.online){
+    cloudChangePassword(curPass, newPass).then(function(res){
+      if(res !== true) showToast('⚠️ Local password changed, but online password could not be updated ('+res+'). Try "Go online" again with your new password.');
+    });
+  }
 }
 
 function doLogout() {
   if (!confirm('Sign out? Your progress is saved and will be here when you return.')) return;
   save(); // save before logout
+  cloudDisconnect();
   currentUser = null;
   try { localStorage.removeItem('pgcc_session'); } catch(e) {}
   caught = []; party = []; friends = []; dexSeen = {}; friendKnownIncoming = null;
@@ -15277,7 +15637,9 @@ function initAuth() {
     if (session) {
       var users = getUsers();
       if (users[session.toLowerCase()]) {
-        loginAs(users[session.toLowerCase()].displayName || session);
+        var sName = users[session.toLowerCase()].displayName || session;
+        loginAs(sName);
+        cloudRestore(sName);
         return;
       }
     }
