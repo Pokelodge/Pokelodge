@@ -1673,6 +1673,16 @@ footer a{color:var(--navy);text-decoration:none}
 .fm-pw input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px}
 .fm-pw button{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:12.5px;cursor:pointer}
 
+/* MOVE TOOLTIP */
+.move-tip-pop{position:fixed;z-index:99999;width:220px;background:#12172a;color:#fff;border-radius:10px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .12s ease;font-family:'DM Sans',sans-serif}
+.move-tip-pop.show{opacity:1}
+.move-tip-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.move-tip-name{font-weight:800;font-size:13px}
+.move-tip-type{font-size:9px;font-weight:800;color:#fff;padding:2px 7px;border-radius:5px;letter-spacing:.04em}
+.move-tip-stats{display:flex;gap:14px;font-size:11px;color:rgba(255,255,255,.65);margin-bottom:6px}
+.move-tip-stats b{color:#fff;font-weight:700}
+.move-tip-desc{font-size:11.5px;line-height:1.45;color:rgba(255,255,255,.9)}
+
 /* FRIENDS LIST */
 .friends-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;display:none;align-items:center;justify-content:center;padding:1rem}
 .friends-overlay.show{display:flex}
@@ -8081,12 +8091,29 @@ function canGigantamax(pokeId){ return GIGANTAMAX_SPECIES.indexOf(pokeId) >= 0; 
 
 // ── Max Moves: every damaging move a Dynamaxed Pokémon uses becomes the generic
 // Max Move that matches that move's type (name changes, type/power basis stays the same). ──
+// ── Max Moves: every damaging move a Dynamaxed Pokémon uses becomes the generic
+// Max Move that matches that move's type — and, just like in the real games, each
+// one carries its own signature secondary effect (weather/terrain, a stat change,
+// or a status condition), not just a name and a damage boost. ──
 var MAX_MOVE_NAMES = {
-  Normal:'Max Strike', Fire:'Max Flare', Water:'Max Geyser', Electric:'Max Lightning',
-  Grass:'Max Overgrowth', Ice:'Max Hailstorm', Fighting:'Max Knuckle', Poison:'Max Ooze',
-  Ground:'Max Quake', Flying:'Max Airstream', Psychic:'Max Mindstorm', Bug:'Max Flutterby',
-  Rock:'Max Rockfall', Ghost:'Max Phantasm', Dragon:'Max Wyrmwind', Dark:'Max Darkness',
-  Steel:'Max Steelspike', Fairy:'Max Starfall',
+  Normal:  {name:'Max Strike',     effect:{kind:'statDown', stat:'atk', mult:0.85, text:"The boss's Speed fell, throwing off its offense!"}},
+  Fire:    {name:'Max Flare',      effect:{kind:'buff', buff:'atk', text:'The sunlight turns harsh, empowering the attack!'}},
+  Water:   {name:'Max Geyser',     effect:{kind:'buff', buff:'atk', text:'A heavy rain begins to fall, empowering the attack!'}},
+  Electric:{name:'Max Lightning',  effect:{kind:'status', status:'par', chance:0.3, text:'An electric current surges through the field!'}},
+  Grass:   {name:'Max Overgrowth', effect:{kind:'heal', amount:0.1, text:'Grassy terrain spreads, restoring the team a little!'}},
+  Ice:     {name:'Max Hailstorm',  effect:{kind:'statDown', stat:'def', mult:0.85, text:'Hail batters the boss, chipping its defenses!'}},
+  Fighting:{name:'Max Knuckle',    effect:{kind:'buff', buff:'atk', text:"The team's Attack is boosted!"}},
+  Poison:  {name:'Max Ooze',       effect:{kind:'status', status:'psn', chance:0.5, text:'A corrosive ooze spreads across the field!'}},
+  Ground:  {name:'Max Quake',      effect:{kind:'buff', buff:'shield', text:"The ground steadies, boosting the team's defenses!"}},
+  Flying:  {name:'Max Airstream',  effect:{kind:'buff', buff:'crit', text:"A tailwind whips up, sharpening the team's attacks!"}},
+  Psychic: {name:'Max Mindstorm',  effect:{kind:'status', status:'confuse', chance:0.5, text:'A psychic field disorients the boss!'}},
+  Bug:     {name:'Max Flutterby',  effect:{kind:'statDown', stat:'atk', mult:0.85, text:"The boss's Sp. Atk fell!"}},
+  Rock:    {name:'Max Rockfall',   effect:{kind:'statDown', stat:'def', mult:0.85, text:'A sandstorm kicks up, eroding the boss!'}},
+  Ghost:   {name:'Max Phantasm',   effect:{kind:'statDown', stat:'def', mult:0.8, text:"The boss's Defense fell!"}},
+  Dragon:  {name:'Max Wyrmwind',   effect:{kind:'statDown', stat:'atk', mult:0.8, text:"The boss's Attack fell!"}},
+  Dark:    {name:'Max Darkness',   effect:{kind:'statDown', stat:'def', mult:0.85, text:"The boss's Sp. Def fell!"}},
+  Steel:   {name:'Max Steelspike', effect:{kind:'buff', buff:'shield', text:"The team's Defense is boosted!"}},
+  Fairy:   {name:'Max Starfall',   effect:{kind:'buff', buff:'shield', text:'A protective mist blankets the field!'}},
 };
 
 // ── G-Max Moves: a Gigantamaxed Pokémon's signature move. It replaces the generic
@@ -8135,16 +8162,17 @@ function raidResolveMove(bs, p, moveName){
   var baseType = MOVE_TYPES[moveName] || 'Normal';
   var power = getMovePower(moveName);
   if(bs.maxTurnsLeft <= 0 || power <= 0){
-    return { name: moveName, type: baseType, power: power, gmax: null };
+    return { name: moveName, type: baseType, power: power, effect: null, isMax: false };
   }
   var gmaxDef = GMAX_MOVES[p.id];
   if(bs.isGmax && gmaxDef && gmaxDef.type === baseType){
-    return { name: gmaxDef.name, type: baseType, power: power, gmax: gmaxDef };
+    return { name: gmaxDef.name, type: baseType, power: power, effect: gmaxDef.effect, isMax: true };
   }
-  return { name: (MAX_MOVE_NAMES[baseType] || ('Max '+baseType)), type: baseType, power: power, gmax: null };
+  var maxDef = MAX_MOVE_NAMES[baseType] || {name:'Max '+baseType, effect:null};
+  return { name: maxDef.name, type: baseType, power: power, effect: maxDef.effect, isMax: true };
 }
 
-// Applies a G-Max move's secondary effect (status/buff/heal/stat-drop) and returns a log line, or ''.
+// Applies a Max/G-Max move's secondary effect (status/buff/heal/stat-drop) and returns a log line, or ''.
 function raidApplyGmaxEffect(bs, effect){
   if(!effect) return '';
   var pName = caught[bs.playerCaughtIdx].name;
@@ -8158,16 +8186,17 @@ function raidApplyGmaxEffect(bs, effect){
     if(bs.bossStatus) return ''; // boss can only hold one status condition at a time
     bs.bossStatus = status;
     var label = {par:'paralyzed',psn:'poisoned',brn:'burned',confuse:'confused',slp:'put to sleep'}[status]||status;
-    return 'The boss was '+label+'!';
+    return effect.text ? effect.text+' The boss was '+label+'!' : 'The boss was '+label+'!';
   }
   if(effect.kind === 'statDown'){
-    if(effect.stat === 'atk'){ bs.bossAtkMult = (bs.bossAtkMult||1) * effect.mult; return "The boss's Attack fell!"; }
-    if(effect.stat === 'def'){ bs.bossDefMult = (bs.bossDefMult||1) * effect.mult; return "The boss's Defense fell!"; }
+    if(effect.stat === 'atk'){ bs.bossAtkMult = (bs.bossAtkMult||1) * effect.mult; return effect.text || "The boss's Attack fell!"; }
+    if(effect.stat === 'def'){ bs.bossDefMult = (bs.bossDefMult||1) * effect.mult; return effect.text || "The boss's Defense fell!"; }
     return '';
   }
   if(effect.kind === 'buff'){
-    if(effect.buff === 'crit'){ bs.playerCritBoost = true; return pName+"'s team is fired up — critical hits land more often!"; }
-    if(effect.buff === 'shield'){ bs.playerDamageReduction = 0.7; return 'A protective mist surrounds '+pName+"'s team!"; }
+    if(effect.buff === 'crit'){ bs.playerCritBoost = true; return effect.text || (pName+"'s team is fired up — critical hits land more often!"); }
+    if(effect.buff === 'shield'){ bs.playerDamageReduction = Math.min(bs.playerDamageReduction||1, 0.7); return effect.text || ('A protective mist surrounds '+pName+"'s team!"); }
+    if(effect.buff === 'atk'){ bs.playerAtkMult = (bs.playerAtkMult||1) * 1.2; return effect.text || (pName+"'s team hits harder now!"); }
     return '';
   }
   if(effect.kind === 'heal'){
@@ -8177,7 +8206,7 @@ function raidApplyGmaxEffect(bs, effect){
     bs.allies.forEach(function(a){
       if(a.hp > 0){ var h = Math.round(a.maxHp*effect.amount); if(a.hp < a.maxHp){ a.hp = Math.min(a.maxHp, a.hp+h); healed = true; } }
     });
-    return healed ? "The team's HP is restored a little!" : '';
+    return healed ? (effect.text || "The team's HP is restored a little!") : '';
   }
   if(effect.kind === 'flavor'){
     return effect.text || '';
@@ -8254,7 +8283,7 @@ function startRaidBattle(){
     gmaxAvailable: canGigantamax(p.id) && !!p.gmaxFactor,
     // Boss status/stat effects that G-Max moves can inflict, and player-side buffs from them
     bossStatus: null, bossAtkMult: 1, bossDefMult: 1,
-    playerCritBoost: false, playerDamageReduction: 1,
+    playerCritBoost: false, playerDamageReduction: 1, playerAtkMult: 1,
   };
   registerBattleUse(raidState.playerCaughtIdx); // count this Pokémon as having battled (friendship evolutions)
   if(mp.role === 'host'){ mp.guests.forEach(function(g,i){ g.slotIdx = i+1; mpSafeSend(g.conn,{type:'start'}); }); }
@@ -8572,7 +8601,7 @@ function renderGuestBattle(){
   else if(mp.myTurn){
     movesHtml = '<div class="bw-move-grid">'+mp.myTurn.map(function(m,i){
       var dis = m.power<=0 ? ' disabled' : '';
-      return '<button class="bw-move-cell" style="border-color:'+tc(m.type)+'" onclick="mpSendMove('+i+')"'+dis+'>'+
+      return '<button class="bw-move-cell" style="border-color:'+tc(m.type)+'" onclick="mpSendMove('+i+')"'+dis+' data-move="'+mpEsc(m.name)+'">'+
         '<span class="bw-move-cell-name">'+mpEsc(m.name)+'</span>'+
         '<span class="bw-move-cell-type" style="background:'+tc(m.type)+'">'+mpEsc(String(m.type).toUpperCase())+'</span></button>';
     }).join('')+'</div><div class="raid-max-active">Your turn — pick a move!</div>';
@@ -8680,7 +8709,10 @@ function renderRaidBattle(){
   var movesHtml = bs.moves.slice(0,4).map(function(m,i){
     var resolved = raidResolveMove(bs, p, m);
     var mtype = resolved.type;
-    return '<button class="bw-move-cell" style="border-color:'+tc(mtype)+'" onclick="raidPlayerMove('+i+')" '+(bs.over||bs.busy?'disabled':'')+'>'+
+    var tipAttrs = resolved.isMax
+      ? ' data-move="'+mpEsc(resolved.name)+'" data-move-max="1" data-move-type="'+mpEsc(resolved.type)+'" data-move-power="'+resolved.power+'"'+(resolved.effect ? ' data-move-effect="'+mpEsc(JSON.stringify(resolved.effect))+'"' : '')
+      : ' data-move="'+mpEsc(resolved.name)+'"';
+    return '<button class="bw-move-cell" style="border-color:'+tc(mtype)+'" onclick="raidPlayerMove('+i+')" '+(bs.over||bs.busy?'disabled':'')+tipAttrs+'>'+
       '<span class="bw-move-cell-name">'+resolved.name+'</span>'+
       '<span class="bw-move-cell-type" style="background:'+tc(mtype)+'">'+mtype.toUpperCase()+'</span>'+
     '</button>';
@@ -8754,6 +8786,7 @@ function raidPlayerMove(moveIdx){
 
   if(power > 0){
     var boost = bs.maxTurnsLeft > 0 ? (bs.isGmax ? 1.8 : 1.5) : 1;
+    boost *= (bs.playerAtkMult||1); // from an earlier Max Move like Max Flare/Max Knuckle this fight
     // A crit from G-Max Chi Strike hits noticeably harder.
     var isCrit = bs.playerCritBoost && Math.random() < 0.5;
     if(isCrit) boost *= 1.5;
@@ -8763,10 +8796,10 @@ function raidPlayerMove(moveIdx){
     var effText = effLabel.label ? effLabel.label+' ' : '';
     var critText = isCrit ? 'A critical hit! ' : '';
     raidBattleLog(p.name+' used '+resolved.name+'! '+critText+effText+'(-'+result.dmg+' HP)');
-    // G-Max signature moves can inflict a secondary status/buff/heal effect.
-    if(resolved.gmax){
-      var gmaxMsg = raidApplyGmaxEffect(bs, resolved.gmax.effect);
-      if(gmaxMsg) raidBattleLog(gmaxMsg);
+    // Every Max Move (generic or G-Max signature) can inflict its own secondary effect.
+    if(resolved.effect){
+      var maxMsg = raidApplyGmaxEffect(bs, resolved.effect);
+      if(maxMsg) raidBattleLog(maxMsg);
     }
   } else {
     raidBattleLog(p.name+' used '+resolved.name+'!');
@@ -10516,7 +10549,7 @@ function renderPokeInfoPages(){
     var mtype = MOVE_TYPES[m] || 'Normal';
     var pwr = getMovePower(m);
     var pp = (typeof MOVE_PP !== 'undefined' && MOVE_PP[m]) ? MOVE_PP[m] : (pwr===0 ? 20 : 15);
-    return '<div class="pi-move-row" style="border-color:'+tc(mtype)+'"'+clickAttr+'>'+
+    return '<div class="pi-move-row" style="border-color:'+tc(mtype)+'"'+clickAttr+' data-move="'+mpEsc(m)+'">'+
       '<div class="pi-move-type-badge" style="background:'+tc(mtype)+'">'+
         '<span>'+mtype.slice(0,3).toUpperCase()+'</span>'+
       '</div>'+
@@ -12311,7 +12344,216 @@ const MOVE_POWER={
   "Swift":60,
   "Withdraw":0,"Aeroblast":100,"Belch":120,"Crush Claw":75,"Dark Void":null,"Dizzy Punch":70,"Dynamax Cannon":100,"Facade":70,"Final Gambit":null,"Flame Burst":70,"Freeze Shock":140,"Heart Stamp":60,"Heat Crash":80,"Hidden Power":60,"Howl":null,"Hydro Cannon":150,"Hyper Kick":130,"Ice Burn":140,"Judgment":100,"Magma Storm":100,"Metal Burst":100,"Needle Arm":60,"Noble Roar":null,"Play Nice":null,"Power Trip":20,"Present":40,"Psywave":40,"Return":102,"Rock Climb":90,"Searing Shot":100,"Seed Flare":120,"Sketch":null,"Slack Off":null,"Spikes":null,"Tail Glow":null,"Tease":null,"Wake-Up Slap":70,"Weather Ball":50,"Wring Out":80,
 };
+
+// Real accuracy for moves that deviate from a perfect 100% (status/self-target moves
+// use null since they don't roll a hit chance in the real games); anything not listed
+// here defaults to 100 in getMoveAccuracy() below.
+const MOVE_ACCURACY={
+  // Never-miss / self-targeting / field moves (no real accuracy check)
+  "Swift":null,"Aerial Ace":null,"Shock Wave":null,"Magnitude":null,"Feint Attack":null,
+  "Shadow Punch":null,"Vital Throw":null,"Aura Sphere":null,"Disarming Voice":null,
+  "Clear Smog":null,"Sure Shot":null,
+  // ── Status / setup moves that are self-targeting or otherwise always land ──
+  "Swords Dance":null,"Nasty Plot":null,"Calm Mind":null,"Bulk Up":null,"Dragon Dance":null,
+  "Growth":null,"Agility":null,"Amnesia":null,"Barrier":null,"Cosmic Power":null,"Defense Curl":null,
+  "Double Team":null,"Harden":null,"Iron Defense":null,"Minimize":null,"Withdraw":null,"Acid Armor":null,
+  "Growl":null,"Leer":null,"Tail Whip":null,"Screech":null,"Charm":null,"Baby-Doll Eyes":null,
+  "Light Screen":null,"Reflect":null,"Safeguard":null,"Mist":null,"Aurora Veil":null,"Lucky Chant":null,
+  "Recover":null,"Rest":null,"Roost":null,"Soft-Boiled":null,"Milk Drink":null,"Slack Off":null,"Morning Sun":null,
+  "Synthesis":null,"Moonlight":null,"Wish":null,"Substitute":null,"Protect":null,"Detect":null,"Endure":null,
+  "Belly Drum":null,"Splash":null,"Celebrate":null,"Hold Hands":null,"Sunny Day":null,"Rain Dance":null,
+  "Sandstorm":null,"Hail":null,"Snowscape":null,"Trick Room":null,"Gravity":null,"Tailwind":null,
+  "Helping Hand":null,"Follow Me":null,"Rage Powder":null,"Spikes":null,"Toxic Spikes":null,"Sticky Web":null,
+  "Stealth Rock":null,"Taunt":null,"Torment":null,"Disable":null,"Encore":null,"Yawn":null,"Curse":null,
+  "Sweet Scent":null,"Conversion":null,"Conversion 2":null,"Recycle":null,"Transform":null,"Sketch":null,
+  "Teleport":null,"Whirlwind":null,"Roar":null,"Baton Pass":null,"U-turn":null,"Volt Switch":null,
+  "Explosion":null,"Self-Destruct":null,"Memento":null,"Healing Wish":null,"Lunar Dance":null,"Perish Song":null,
+  "Ingrain":null,"Aqua Ring":null,"Magnet Rise":null,"Tailglow":null,"Tail Glow":null,"Work Up":null,
+  "Coil":null,"Shell Smash":null,"Shift Gear":null,"Quiver Dance":null,"Geomancy":null,"No Retreat":null,
+  "Stockpile":null,"Charge":null,"Refresh":null,"Psych Up":null,"Camouflage":null,"Mimic":null,
+  "Present":null,"Fissure":100,"Horn Drill":100,"Sheer Cold":100,"Guillotine":100,
+  // ── Well-known imperfect-accuracy attacking moves (Gen 6+ base values) ──
+  "Hydro Pump":80,"Fire Blast":85,"Blizzard":70,"Thunder":70,"Focus Blast":70,"Stone Edge":80,
+  "Rock Slide":90,"Hurricane":70,"Sky Attack":90,"Iron Tail":75,"Crunch":100,"Zap Cannon":50,
+  "Dynamic Punch":50,"Inferno":50,"Gunk Shot":80,"Cross Chop":80,"Submission":80,"Jump Kick":90,
+  "High Jump Kick":90,"Leaf Tornado":90,"Muddy Water":85,"Bounce":85,"Fly":95,"Sky Uppercut":90,
+  "Bone Club":85,"Bonemerang":90,"Egg Bomb":75,"Rolling Kick":85,"Mega Kick":75,"Mega Punch":85,
+  "Hyper Fang":90,"Dragon Rush":75,"Draco Meteor":90,"Meteor Mash":90,"Steel Wing":90,"Zen Headbutt":90,
+  "Signal Beam":100,"Take Down":85,"Double-Edge":100,"Double Edge":100,"Rock Tomb":95,"Sand Tomb":85,
+  "Fire Spin":85,"Whirlpool":85,"Clamp":85,"Sludge Wave":100,"Petal Blizzard":100,"Air Slash":95,
+  "Icicle Crash":90,"Razor Leaf":95,"Poison Jab":100,"Dragon Claw":100,"Flamethrower":100,
+  // ── Status/attack moves with a real accuracy check below 100 ──
+  "Thunder Wave":90,"Hypnosis":60,"Sing":55,"Sleep Powder":75,"Stun Spore":75,"Poison Powder":75,
+  "Confuse Ray":100,"Supersonic":55,"Lovely Kiss":75,"Grass Whistle":55,"Dark Void":50,
+  "Cotton Spore":100,"Scary Face":100,"String Shot":95,"Sand Attack":100,"Smokescreen":100,
+  "Flash":100,"Kinesis":80,"Mud Slap":100,"Mud-Slap":100,"Sweet Kiss":75,"Attract":100,
+  "Will-O-Wisp":85,"Glare":100,"Poison Gas":90,"Acid Spray":100,"Octazooka":85,"Flash Cannon":100,
+};
+
 function getMovePower(move){var p=MOVE_POWER[move];return(p===undefined)?50:(p===null?0:p);}
+// ── Move info tooltip: accuracy lookup + human-readable effect description ──
+function getMoveAccuracy(move){
+  var a = MOVE_ACCURACY[move];
+  return (a === undefined) ? 100 : a; // null = never misses / no accuracy check
+}
+var STAT_LABEL = {atk:'Attack', def:'Defense', spAtk:'Sp. Atk', spDef:'Sp. Def', spd:'Speed', spe:'Speed', acc:'Accuracy', eva:'Evasion'};
+var STATUS_VERB = {par:'paralyze', psn:'poison', tox:'badly poison', brn:'burn', frz:'freeze', slp:'put the target to sleep', cnf:'confuse'};
+function pctOf(chance){ return Math.round((chance===undefined?1:chance)*100); }
+function chanceClause(chance, verbPhrase){
+  var p = pctOf(chance);
+  return (p >= 100 ? ('Will always '+verbPhrase+'.') : (p+'% chance to '+verbPhrase+'.'));
+}
+// Describes a base move's real secondary effect, drawn from MOVE_EFFECTS.
+function describeMoveEffect(moveName){
+  var e = MOVE_EFFECTS[moveName];
+  if(!e) return 'No additional effect.';
+  var parts = [];
+  if(e.weather){
+    var wName = {sun:'harsh sunlight', rain:'rain', sand:'a sandstorm', hail:'hail'}[e.weather] || e.weather;
+    parts.push('Summons '+wName+'.');
+  }
+  if(e.selfHeal){
+    var healTxt = 'Restores '+Math.round(e.selfHeal*100)+"% of the user's max HP";
+    parts.push(healTxt + ((e.selfStatus && e.status==='slp') ? ', but puts the user to sleep.' : '.'));
+  }
+  if(e.twoTurn){
+    parts.push('Charges on the first turn ('+(e.chargeMsg||'prepares')+'), then attacks on the second.');
+  }
+  if(e.ohko){
+    parts.push('One-hit KO — knocks out the target instantly if it hits.');
+  }
+  if(e.fixedDmg){
+    parts.push('Deals damage equal to '+(e.fixedDmg==='level' ? "the user's level" : e.fixedDmg)+', ignoring type effectiveness.');
+  }
+  if(e.multiHit){
+    parts.push('Hits 2–5 times in a row.');
+  }
+  if(e.leechSeed){
+    parts.push(chanceClause(e.chance, 'plant a Leech Seed that drains HP from the target each turn'));
+  }
+  if(e.statBoostDef){
+    var b = e.statBoostDef;
+    parts.push("Raises the target's "+(STAT_LABEL[b.stat]||b.stat)+' by '+b.stages+' stage'+(b.stages>1?'s':'')+'.');
+  }
+  if(e.statBoost && !e.statBoostDef){
+    var sb = e.statBoost;
+    parts.push("Raises the user's "+(STAT_LABEL[sb.stat]||sb.stat)+' by '+sb.stages+' stage'+(sb.stages>1?'s':'')+'.');
+  }
+  if(e.statDrop){
+    var sd = e.statDrop;
+    parts.push(chanceClause(e.chance, "lower the target's "+(STAT_LABEL[sd.stat]||sd.stat)+' by '+sd.stages+' stage'+(sd.stages>1?'s':'')));
+  }
+  if(e.status === 'flinch'){
+    parts.push(chanceClause(e.chance!==undefined?e.chance:0.3, 'make the target flinch'));
+  } else if(e.status && !e.selfStatus){
+    parts.push(chanceClause(e.chance, STATUS_VERB[e.status] ? STATUS_VERB[e.status]+' the target' : ('inflict '+e.status+' on the target')));
+  }
+  if(e.drain){
+    parts.push('User recovers '+Math.round(e.drain*100)+'% of the damage dealt as HP.');
+  }
+  if(e.recoil){
+    parts.push('User takes recoil damage equal to '+Math.round(e.recoil*100)+'% of the damage dealt.');
+  }
+  return parts.length ? parts.join(' ') : 'No additional effect.';
+}
+// Describes a Max/G-Max move's signature effect (the {kind:...} shape from
+// MAX_MOVE_NAMES / GMAX_MOVES), phrased for a tooltip rather than a battle log line.
+function describeMaxEffect(effect){
+  if(!effect) return 'No additional effect.';
+  if(effect.kind === 'status'){
+    var status = effect.status === 'random' ? (effect.options||[]).map(function(s){return STATUS_VERB[s]||s;}).join('/') : (STATUS_VERB[effect.status]||effect.status);
+    return chanceClause(effect.chance!==undefined?effect.chance:0.3, status.indexOf(' ')>=0 && effect.status!=='random' ? status : status+' the target');
+  }
+  if(effect.kind === 'statDown'){
+    return "Lowers the boss's "+(effect.stat==='atk'?'Attack':'Defense')+' for the rest of the fight.';
+  }
+  if(effect.kind === 'buff'){
+    if(effect.buff === 'crit') return "Sharpens the user's team — critical hits land more often for the rest of the fight.";
+    if(effect.buff === 'shield') return 'Reduces damage taken by the whole team for the rest of the fight.';
+    if(effect.buff === 'atk') return "Boosts the user's team Attack for the rest of the fight.";
+  }
+  if(effect.kind === 'heal') return 'Restores '+Math.round(effect.amount*100)+"% max HP to the user's whole team.";
+  if(effect.kind === 'flavor') return effect.text || 'A signature effect with no extra battle mechanic here.';
+  return 'No additional effect.';
+}
+// Builds the full tooltip content for one move. `opts` lets a caller override
+// power/type/accuracy/effect when the move has been turned into a Max/G-Max move
+// (Max Moves always ignore the base move's own accuracy and effect — they use
+// their own, and never miss, exactly like in the real games).
+function buildMoveTooltip(moveName, opts){
+  opts = opts || {};
+  var type = opts.type || MOVE_TYPES[moveName] || 'Normal';
+  var power = (opts.power !== undefined) ? opts.power : getMovePower(moveName);
+  var isMax = !!opts.isMax;
+  var accText = isMax ? 'Never Misses' : (function(){
+    var a = getMoveAccuracy(moveName);
+    return (a === null) ? '—' : (a+'%');
+  })();
+  var powerText = power > 0 ? String(power) : '—';
+  var desc = isMax ? describeMaxEffect(opts.effect) : describeMoveEffect(moveName);
+  return { type:type, power:powerText, accuracy:accText, desc:desc };
+}
+function moveTooltipHtml(moveName, opts){
+  var t = buildMoveTooltip(moveName, opts);
+  return '<div class="move-tip">'+
+    '<div class="move-tip-head"><span class="move-tip-name">'+mpEsc(moveName)+'</span>'+
+    '<span class="move-tip-type" style="background:'+tc(t.type)+'">'+t.type.toUpperCase()+'</span></div>'+
+    '<div class="move-tip-stats"><span>PWR <b>'+t.power+'</b></span><span>ACC <b>'+t.accuracy+'</b></span></div>'+
+    '<div class="move-tip-desc">'+mpEsc(t.desc)+'</div>'+
+  '</div>';
+}
+// Wires hover (desktop) and tap (touch) tooltips onto any element carrying
+// data-move (base move name) and, optionally, data-move-max="1" data-move-effect="<json>"
+// data-move-power="N" for a resolved Max/G-Max display.
+var _moveTipEl = null;
+function moveTipShow(target){
+  if(!_moveTipEl){
+    _moveTipEl = document.createElement('div');
+    _moveTipEl.className = 'move-tip-pop';
+    document.body.appendChild(_moveTipEl);
+  }
+  var moveName = target.getAttribute('data-move');
+  if(!moveName) return;
+  var opts = {};
+  if(target.getAttribute('data-move-max') === '1'){
+    opts.isMax = true;
+    opts.type = target.getAttribute('data-move-type') || undefined;
+    var p = target.getAttribute('data-move-power'); if(p) opts.power = parseInt(p,10);
+    var eff = target.getAttribute('data-move-effect');
+    if(eff){ try{ opts.effect = JSON.parse(eff); }catch(e){} }
+  }
+  _moveTipEl.innerHTML = moveTooltipHtml(moveName, opts);
+  var r = target.getBoundingClientRect();
+  var tipW = 220;
+  var left = Math.min(Math.max(8, r.left + r.width/2 - tipW/2), window.innerWidth - tipW - 8);
+  var top = r.top - 8; // default: above the move
+  _moveTipEl.style.left = left+'px';
+  _moveTipEl.classList.add('show');
+  _moveTipEl.style.top = Math.max(8, top - _moveTipEl.offsetHeight)+'px';
+  if(r.top - _moveTipEl.offsetHeight < 8){ // not enough room above — show below instead
+    _moveTipEl.style.top = (r.bottom + 8)+'px';
+  }
+}
+function moveTipHide(){
+  if(_moveTipEl) _moveTipEl.classList.remove('show');
+}
+(function(){
+  document.addEventListener('mouseover', function(e){
+    var t = e.target.closest && e.target.closest('[data-move]');
+    if(t) moveTipShow(t);
+  });
+  document.addEventListener('mouseout', function(e){
+    var t = e.target.closest && e.target.closest('[data-move]');
+    if(t) moveTipHide();
+  });
+  // Touch devices: tap to show, tap elsewhere to hide.
+  document.addEventListener('touchstart', function(e){
+    var t = e.target.closest && e.target.closest('[data-move]');
+    if(t){ moveTipShow(t); }
+    else { moveTipHide(); }
+  }, {passive:true});
+})();
+
 
 // Battle state
 var battleState = {
@@ -13099,7 +13341,7 @@ function showFightMenu(){
     var mult = pw > 0 ? getTypeMultiplier(t, eDefTypes) : 1;
     var effIcon  = mult > 1 ? ' ▲' : mult === 0 ? ' ✗' : mult < 1 ? ' ▼' : '';
     var effColor = mult > 1 ? '#2ECC71' : mult===0 ? '#888' : mult<1 ? '#E67E22' : '#181818';
-    return '<div class="bw-move-cell" onclick="playerUsedMove('+i+')">'
+    return '<div class="bw-move-cell" onclick="playerUsedMove('+i+')" data-move="'+mpEsc(m)+'">'
       + '<span class="bw-move-cell-pp">PP '+maxPP+'/'+maxPP+'</span>'
       + '<span class="bw-move-cell-name">'+m+'<span class="bw-move-cell-eff" style="color:'+effColor+'">'+effIcon+'</span></span>'
       + '<span class="bw-move-cell-type" style="background:'+tc(t)+'">'+t.toUpperCase()+'</span>'
