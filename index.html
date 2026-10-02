@@ -1562,6 +1562,17 @@ footer a{color:var(--navy);text-decoration:none}
   animation:raid-boss-float 3s ease-in-out infinite;
 }
 @keyframes raid-boss-float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-7px) scale(1.03)}}
+.raid-voltcrash-fx{
+  position:absolute;right:16px;top:38px;z-index:7;width:220px;height:220px;
+  image-rendering:pixelated;image-rendering:crisp-edges;pointer-events:none;
+}
+.raid-redclouds-fx{
+  position:absolute;z-index:2;pointer-events:none;
+  image-rendering:pixelated;image-rendering:crisp-edges;
+  mix-blend-mode:screen;opacity:.9;
+}
+.raid-redclouds-fx.boss{right:-4px;top:2px;width:236px;height:130px;}
+.raid-redclouds-fx.player{left:120px;bottom:70px;width:200px;height:112px;}
 
 .raid-bt-bottom{display:flex;flex-shrink:0;border-top:3px solid #0d0d18;min-height:132px}
 .raid-bt-log{
@@ -8308,6 +8319,23 @@ var mp = { role:null, peer:null, roomCode:null, roomError:null, guests:[], hostC
 var MP_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function mpRandomCode(){ var s=''; for(var i=0;i<6;i++) s+=MP_ALPHABET.charAt(Math.floor(Math.random()*MP_ALPHABET.length)); return s; }
 function mpPeerId(code){ return 'pkl-raid-'+code; }
+// PeerJS's public broker only sets up the introduction; the actual connection is a
+// direct link between the two browsers. On some networks (WiFi with client isolation,
+// certain mobile carriers/school networks) a direct link is blocked outright, and
+// PeerJS no longer runs a free relay server to fall back to — so without one,
+// two nearby devices can still fail to connect. This adds several public STUN
+// servers plus a free public TURN relay (openrelay.metered.ca) as a fallback path.
+var MP_ICE_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun.relay.metered.ca:80' },
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  ]
+};
+function mpNewPeer(id){ return id ? new Peer(id, {config:MP_ICE_CONFIG}) : new Peer({config:MP_ICE_CONFIG}); }
 function mpInviteLink(){ return location.origin+location.pathname+'?raid='+mp.roomCode; }
 function mpEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 function mpCleanName(s){ return String(s||'Trainer').replace(/[^A-Za-z0-9 _.\-]/g,'').trim().slice(0,16) || 'Trainer'; }
@@ -8337,7 +8365,7 @@ function raidChooseInvite(){
 }
 function mpOpenPeer(attempt){
   var code = mpRandomCode();
-  var peer = new Peer(mpPeerId(code));
+  var peer = mpNewPeer(mpPeerId(code));
   mp.peer = peer;
   peer.on('open', function(){ mp.roomCode = code; raidRefreshGathering(); });
   peer.on('connection', mpHostOnConnection);
@@ -8513,14 +8541,21 @@ function mpGuestJoin(){
   document.getElementById('join-raid-body').innerHTML = '<div class="mpj-status ok">Connecting to room '+mpEsc(code)+'…</div>';
   var lvl = levelFromXp(pp.xp||0).level;
   var moves = (pp.moves && pp.moves.filter(Boolean).length) ? pp.moves.filter(Boolean) : getMovesAtLevel(pp.id, lvl);
-  var peer = new Peer(); mp.peer = peer;
+  var peer = mpNewPeer(); mp.peer = peer;
+  var slowNotice = setTimeout(function(){
+    if(!mp.joined && mp.role==='guest'){
+      var body = document.getElementById('join-raid-body');
+      if(body) body.innerHTML = '<div class="mpj-status ok">Still connecting to room '+mpEsc(code)+'… this can take longer on some WiFi/mobile networks.</div>';
+    }
+  }, 6000);
   var timeout = setTimeout(function(){
-    if(!mp.joined && mp.role==='guest'){ mpGuestCleanup(); mp.joinStatus='Could not reach that room. Check the code and try again.'; renderJoinRaid(); }
-  }, 15000);
+    if(!mp.joined && mp.role==='guest'){ mpGuestCleanup(); mp.joinStatus='Could not connect to that room. This is usually the network, not the code — try switching one device to mobile data, or a different WiFi, then try again.'; renderJoinRaid(); }
+  }, 25000);
   peer.on('open', function(){
     var conn = peer.connect(mpPeerId(code), {serialization:'json', reliable:true});
     mp.hostConn = conn;
     conn.on('open', function(){
+      clearTimeout(slowNotice);
       mpSafeSend(conn, {type:'join', name:(currentUser||'Trainer'), poke:{id:pp.id, shiny:!!pp.shiny, level:lvl, moves:moves}});
     });
     conn.on('data', function(d){ if(d && d.type==='joined') clearTimeout(timeout); mpGuestOnData(d); });
@@ -8528,7 +8563,7 @@ function mpGuestJoin(){
     conn.on('error', function(){ mpGuestOnClose(); });
   });
   peer.on('error', function(err){
-    clearTimeout(timeout);
+    clearTimeout(timeout); clearTimeout(slowNotice);
     var msg = (err && err.type==='peer-unavailable') ? 'No raid room found with that code.' : 'Connection problem ('+((err&&err.type)||'error')+').';
     mpGuestCleanup(); mp.joinStatus = msg; renderJoinRaid();
   });
@@ -8617,6 +8652,7 @@ function renderGuestBattle(){
         '<div class="raid-battle-faints">'+faintDots+'</div>'+
         '<div class="raid-bt-meta">Faints '+(s.faints|0)+'/4 · Turn '+(s.turns|0)+'/10 · '+'★'.repeat(Math.max(0,parseInt(b.stars,10)||0))+'</div>'+
       '</div>'+
+      '<canvas class="raid-redclouds-fx boss"></canvas>'+
       '<img class="raid-bt-boss-spr" src="'+spriteUrl(bId,!!b.isShiny)+'" onerror="'+spriteOnerror(bId,!!b.isShiny)+'"/>'+
       (me ? '<img class="raid-bt-player-spr" src="'+spriteUrl(parseInt(me.pokeId,10),!!me.shiny,true)+'" onerror="'+spriteOnerror(parseInt(me.pokeId,10),!!me.shiny)+'"/>' : '')+
       '<div class="raid-bt-allies">'+raidersHtml+'</div>'+
@@ -8625,6 +8661,7 @@ function renderGuestBattle(){
       '<div class="raid-bt-log">'+(s.log||[]).map(function(l){return '<div>'+mpEsc(l)+'</div>';}).join('')+'</div>'+
       '<div class="raid-bt-actions">'+movesHtml+'</div>'+
     '</div>';
+  modal.querySelectorAll('.raid-redclouds-fx').forEach(function(cv){ startRedCloudsFx(cv); });
 }
 function mpGuestShowEnd(d){
   var modal = document.getElementById('raid-battle-modal');
@@ -8658,6 +8695,118 @@ function mpGuestCatchBoss(){
 }
 
 /* ── Raid battle UI, styled to match the trainer battle screen ── */
+
+// ── Red storm clouds effect (adapted from a user-supplied "Pixel Red Clouds" canvas
+// sketch) — loops continuously above a Dynamaxed/Gigantamaxed Pokémon's sprite.
+// Each call owns its own canvas/state, and stops itself once that canvas is removed
+// from the page (e.g. the next renderRaidBattle() replaces it), so nothing leaks. ──
+function startRedCloudsFx(cv){
+  var W=192, H=108, CX=96, CY=54, RX=62, RY=22, TILT=-.12, OM=1.5;
+  var ctx = cv.getContext('2d');
+  cv.width = W; cv.height = H; ctx.imageSmoothingEnabled = false;
+  var rnd = function(a,b){ return a+Math.random()*(b-a); };
+  var R = Math.round;
+  var clamp = function(v,a,b){ a = a===undefined?0:a; b = b===undefined?1:b; return Math.min(b,Math.max(a,v)); };
+  var COL = ['#ff8a6a','#e8503c','#c82a2a','#8a1424','#4a0a1c'];
+  var t0, C, P;
+
+  function reset(){
+    t0 = performance.now(); P = []; C = [];
+    for(var i=0;i<3;i++){
+      var pf = [];
+      for(var k=0;k<8;k++) pf.push({dx:rnd(-15,15), dy:rnd(-6,6), r:rnd(7,12), ph:rnd(0,6.28)});
+      pf.sort(function(a,b){ return a.dy-b.dy; });
+      C.push({pf:pf, fl:0, next:rnd(1.5,2.5), seed:rnd(0,6)});
+    }
+  }
+  function sp(x,y,vx,vy,life,size,g,c,k){
+    k = k || {};
+    var o = {x:x,y:y,vx:vx,vy:vy,life:life,age:0,size:size,g:g,c:c};
+    for(var key in k) o[key] = k[key];
+    P.push(o);
+  }
+  function ell(cx,cy,rx,ry,col,al){
+    ctx.fillStyle = col; ctx.globalAlpha = al;
+    for(var y=-ry;y<=ry;y++){
+      var w = R(rx*Math.sqrt(1-y*y/(ry*ry+.01)));
+      ctx.fillRect(cx-w, cy+y, 2*w+1, 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+  function puff(cx,cy,r,t,seed){
+    for(var y=Math.floor(cy-r*1.3); y<=cy+r*1.3; y++){
+      for(var x=Math.floor(cx-r*1.3); x<=cx+r*1.3; x++){
+        if(x<0||x>=W||y<0||y>=H) continue;
+        var dx=x-cx, dy=y-cy, d=Math.hypot(dx,dy), a=Math.atan2(dy,dx);
+        var n = 1+.13*(Math.sin(a*5+t*2.5+seed)+Math.sin(a*8-t*2))/2;
+        if(d>=r*n) continue;
+        var s = dy/r+dx/r*.4;
+        ctx.fillStyle = s<-.55?COL[0]:s<-.15?COL[1]:s<.3?COL[2]:s<.65?COL[3]:COL[4];
+        ctx.fillRect(x,y,1,1);
+      }
+    }
+  }
+  function frame(now){
+    if(!cv.isConnected) return; // host re-rendered the battle screen — stop cleanly
+    var t = (now-t0)/1000, dt = Math.min(.05,(now-(frame.l||now))/1000); frame.l = now;
+    var e = 1-Math.pow(1-clamp(t/1.4),3);
+    var L = C.map(function(c,i){
+      var th = OM*t+i*2*Math.PI/3, x0 = RX*Math.cos(th)*e, y0 = RY*Math.sin(th)*e,
+          x = CX+x0*Math.cos(TILT)-y0*Math.sin(TILT), y = CY+x0*Math.sin(TILT)+y0*Math.cos(TILT)+Math.sin(th*2)*3,
+          z = Math.sin(th), sc = (.8+.3*(z+1)/2)*(.3+.7*e);
+      return {c:c, i:i, x:x, y:y, z:z, sc:sc, th:th};
+    });
+    for(var li=0;li<L.length;li++){
+      var o = L[li], c = o.c;
+      if(t>c.next){ c.fl=1; c.next=t+rnd(.7,2); }
+      c.fl = Math.max(0, c.fl-dt*6);
+      for(var k=0;k<3;k++){
+        var q = rnd(0,6.28);
+        sp(o.x+Math.cos(q)*10*o.sc, o.y+Math.sin(q)*5*o.sc, -Math.sin(o.th)*10+rnd(-8,8), rnd(-6,6), rnd(.6,1.1), rnd(3,6)*o.sc, -4, k%2?'#6a1020':'#8a1424', {smoke:1});
+      }
+      if(Math.random()<.5) sp(o.x+rnd(-12,12)*o.sc, o.y+rnd(-5,5)*o.sc, rnd(-10,10), -rnd(15,40), rnd(.5,1), 1, 0, Math.random()<.5?'#ff8a4a':'#ffd0a0');
+    }
+    for(var pi=0;pi<P.length;pi++){ var p=P[pi]; p.age+=dt; p.vy+=p.g*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; }
+    P = P.filter(function(p){ return p.age<p.life; });
+
+    ctx.clearRect(0,0,W,H); // transparent backdrop so the raid scene shows through behind the clouds
+    var pu = .8+.2*Math.sin(t*2);
+    ell(CX,CY,R(54),R(20),'#6a0c1c',.1*pu*e); ell(CX,CY,R(36),R(13),'#a01828',.12*pu*e); ell(CX,CY,R(18),R(7),'#e8503c',.12*pu*e);
+    for(pi=0;pi<P.length;pi++){
+      p = P[pi]; if(!p.smoke) continue;
+      var f = p.age/p.life; ctx.globalAlpha = .55*(1-f); ctx.fillStyle = p.c;
+      var qs = R(p.size*(1+f*1.3)); ctx.fillRect(R(p.x), R(p.y), qs, qs);
+    }
+    ctx.globalAlpha = 1;
+    L.sort(function(a,b){ return a.z-b.z; });
+    for(li=0;li<L.length;li++){
+      o = L[li]; c = o.c; ctx.globalAlpha = (o.z<0?.82:1)*clamp(t/.6);
+      for(var fi=0;fi<c.pf.length;fi++){
+        var p2 = c.pf[fi], pr = p2.r*o.sc*(1+.08*Math.sin(t*2+p2.ph));
+        puff(R(o.x+p2.dx*o.sc+Math.sin(t*1.5+p2.ph)), R(o.y+p2.dy*o.sc), pr, t, c.seed);
+      }
+      ctx.globalAlpha = 1;
+      if(c.fl>0){
+        ell(R(o.x),R(o.y),R(20*o.sc),R(9*o.sc),'#ff9a7a',.35*c.fl);
+        if(c.fl>.6){
+          ctx.fillStyle = '#ffe0d0';
+          var lx=o.x+rnd(-6,6), ly=o.y+6*o.sc, bolts=rnd(14,26);
+          for(var bk=0;bk<bolts;bk++){ lx+=R(rnd(-2,2)); ly+=1; ctx.fillRect(R(lx),R(ly),1,1); }
+        }
+      }
+    }
+    for(pi=0;pi<P.length;pi++){
+      p = P[pi]; if(p.smoke) continue;
+      f = p.age/p.life; ctx.globalAlpha = f>.7?(1-f)/.3:1; ctx.fillStyle = p.c;
+      qs = Math.max(1,R(p.size)); ctx.fillRect(R(p.x),R(p.y),qs,qs);
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(frame);
+  }
+  reset();
+  requestAnimationFrame(frame);
+}
+
 function renderRaidBattle(){
   var bs = raidBattleState;
   var p = caught[bs.playerCaughtIdx];
@@ -8740,7 +8889,9 @@ function renderRaidBattle(){
         '<div class="raid-battle-faints">'+faintDots+'</div>'+
         '<div class="raid-bt-meta">Faints '+bs.faints+'/4 · Turn '+bs.turns+'/10 · '+'★'.repeat(raidState.stars)+'</div>'+
       '</div>'+
+      '<canvas class="raid-redclouds-fx boss"></canvas>'+
       '<img class="raid-bt-boss-spr" src="'+spriteUrl(raidState.pokeId, raidState.isShiny)+'" onerror="'+spriteOnerror(raidState.pokeId, raidState.isShiny)+'"/>'+
+      (bs.maxTurnsLeft > 0 ? '<canvas class="raid-redclouds-fx player"></canvas>' : '')+
       '<img class="raid-bt-player-spr'+maxSprCls+'" src="'+playerSprSrc+'" onerror="'+playerSprOnerror+'"/>'+
       '<div class="raid-bt-allies">'+alliesHtml+'</div>'+
       playerHpBoxHtml+
@@ -8752,6 +8903,7 @@ function renderRaidBattle(){
         maxBtnHtml+
       '</div>'+
     '</div>';
+  modal.querySelectorAll('.raid-redclouds-fx').forEach(function(cv){ startRedCloudsFx(cv); });
   mpBroadcastState(); // no-op unless hosting an online raid
 }
 
@@ -8769,6 +8921,102 @@ function raidActivateMax(){
   bs.playerHp = Math.round(bs.playerHp * mult);
   raidBattleLog(p.name+(bs.isGmax?' Gigantamaxed! Its power surges!':' Dynamaxed! It grew enormous!'));
   renderRaidBattle();
+}
+
+
+// ── G-Max Volt Crash impact animation (adapted from a user-supplied "Triple Bolt"
+// canvas sketch) — plays once over the boss when Pikachu lands its signature move,
+// then hands control back to the battle flow. ──
+function raidPlayVoltCrashAnim(sceneEl, cb){
+  if(!sceneEl){ cb(); return; }
+  var cv = document.createElement('canvas');
+  cv.width = 96; cv.height = 96;
+  cv.className = 'raid-voltcrash-fx';
+  sceneEl.appendChild(cv);
+  var ctx = cv.getContext('2d');
+  var W = 96, H = 96, GX = 48, GY = 82;
+  var seed = Date.now() % 100000 + 1;
+  var R = function(){ seed = (seed*16807) % 2147483647; return seed/2147483647; };
+  var reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  function makeBolt(sx){
+    var pts = [], px = sx, py = 0, n = 22, i, f;
+    for(i=0;i<=n;i++){
+      f = i/n; py = Math.round(f*GY);
+      px = Math.round(sx+(GX-sx)*Math.pow(f,1.6)+(i<n?(R()-.5)*14*(1-f*.6):0));
+      pts.push([px,py]);
+    }
+    pts[n] = [GX,GY];
+    var br = [], k, s, d, b, bx, by, j;
+    for(k=0;k<3;k++){
+      s = pts[4+Math.floor(R()*12)]; d = R()<.5?-1:1; b=[s];
+      bx = s[0]; by = s[1];
+      for(j=0;j<5;j++){ bx += d*(2+Math.floor(R()*4)); by += 3+Math.floor(R()*4); b.push([bx,by]); }
+      br.push(b);
+    }
+    return {pts:pts, br:br};
+  }
+  function line(a, b, w, col){
+    ctx.fillStyle = col;
+    var x0=a[0],y0=a[1],x1=b[0],y1=b[1];
+    var dx=Math.abs(x1-x0), dy=Math.abs(y1-y0), sx=x0<x1?1:-1, sy=y0<y1?1:-1, e=dx-dy, e2;
+    for(;;){
+      ctx.fillRect(x0-(w>>1), y0, w, 1);
+      if(x0===x1 && y0===y1) break;
+      e2 = 2*e;
+      if(e2>-dy){ e-=dy; x0+=sx; }
+      if(e2<dx){ e+=dx; y0+=sy; }
+    }
+  }
+  function drawBolt(bt, prog){
+    var m = Math.floor(bt.pts.length*Math.min(1,prog));
+    var p = bt.pts.slice(0,m+1), i;
+    for(i=1;i<p.length;i++) line(p[i-1],p[i],7,'rgba(106,92,255,.55)');
+    for(i=1;i<p.length;i++) line(p[i-1],p[i],5,'#ffe94a');
+    for(i=1;i<p.length;i++) line(p[i-1],p[i],2,'#fff');
+    if(prog>.5) bt.br.forEach(function(b){ for(var i=1;i<b.length;i++) line(b[i-1],b[i],2,'#ffe94a'); });
+  }
+
+  var bolts = [makeBolt(14), makeBolt(48), makeBolt(82)];
+  var t0 = performance.now();
+  var DURATION = 950; // slightly past the original's t<900 window, for a clean final frame
+
+  function frame(now){
+    if(!cv.isConnected) return; // battle screen was re-rendered/closed out from under us
+    ctx.clearRect(0,0,W,H);
+    var t = now - t0;
+    var flash = 0;
+    var grow = Math.min(1, t/260);
+    if(t < 900){
+      var on = t < 700 || Math.floor(t/60)%2 === 0;
+      if(on) bolts.forEach(function(b){ drawBolt(b, grow); });
+    }
+    if(t >= 260 && t < 700){
+      var k = (t-260)/440, r = Math.floor(4+k*26), a, ang, rr, px, py;
+      ctx.fillStyle = '#fff'; ctx.fillRect(GX-3,GY-3,6,3);
+      for(a=0;a<14;a++){
+        ang = a/14*Math.PI; rr = r*(a%2?.7:1);
+        px = Math.round(GX+Math.cos(ang)*rr*1.4); py = Math.round(GY-Math.sin(ang)*rr);
+        ctx.fillStyle = a%3 ? '#ffe94a' : '#fff';
+        ctx.fillRect(px,py,2,2);
+      }
+      for(var i=0;i<=r;i+=2){
+        ctx.fillStyle = 'rgba(255,233,74,'+(1-k)+')';
+        ctx.fillRect(GX-i*1.5,GY+1,2,2); ctx.fillRect(GX+i*1.5,GY+1,2,2);
+      }
+    }
+    if(t < 220) flash = 1-t/220;
+    else if(t >= 260 && t < 420) flash = .9*(1-(t-260)/160);
+    if(flash > 0 && !reduce){ ctx.fillStyle = 'rgba(255,250,200,'+(flash*.6)+')'; ctx.fillRect(0,0,W,H); }
+
+    if(t < DURATION){
+      requestAnimationFrame(frame);
+    } else {
+      if(cv.parentNode) cv.parentNode.removeChild(cv);
+      cb();
+    }
+  }
+  requestAnimationFrame(frame);
 }
 
 function raidPlayerMove(moveIdx){
@@ -8805,6 +9053,19 @@ function raidPlayerMove(moveIdx){
     raidBattleLog(p.name+' used '+resolved.name+'!');
   }
   renderRaidBattle();
+
+  // Pikachu's G-Max Volt Crash gets its own impact animation before the turn continues.
+  if(resolved.name === 'G-Max Volt Crash'){
+    var sceneEl = document.querySelector('#raid-battle-modal .raid-bt-scene');
+    raidPlayVoltCrashAnim(sceneEl, function(){
+      raidBattleAllyTurns(function(){
+        if(!raidBattleState) return;
+        if(raidBattleState.bossHp <= 0){ raidBattleWin(); return; }
+        raidBattleBossCounter();
+      });
+    });
+    return;
+  }
 
   raidBattleAllyTurns(function(){
     if(!raidBattleState) return;
@@ -12679,11 +12940,16 @@ function openTrainerBattle(scorePct){
     var lvl = levelFromXp(caught[idx].xp||0).level;
     if(lvl > highestLevel) highestLevel = lvl;
   });
+  // Mid-tier trainers need real breadth, not just one strong Pokémon — count how
+  // many Pokémon ever caught have reached level 15 (across the whole Pokédex,
+  // not just the current party, so swapping your team around doesn't lock you out).
+  var lv15Count = caught.filter(function(p){ return levelFromXp(p.xp||0).level >= 15; }).length;
+  var MID_REQUIRED_LV15_COUNT = 3;
 
-  // Tier unlock thresholds — based on player's highest Pokémon level
+  // Tier unlock thresholds
   // Easy: always available
-  // Mid:  unlocked at level 15
-  // Hard: unlocked at level 25
+  // Mid:  unlocked once the player has 3 Pokémon at level 15+
+  // Hard: unlocked at level 25 (highest Pokémon)
   var EASY_MAX  = 1.55;
   var MID_MIN   = 1.56;
   var MID_MAX   = 2.49;
@@ -12693,13 +12959,15 @@ function openTrainerBattle(scorePct){
   var midTrainers  = regionPool.filter(function(t){ return t.xpMult > EASY_MAX && t.xpMult < HARD_MIN; });
   var hardTrainers = regionPool.filter(function(t){ return t.xpMult >= HARD_MIN; });
 
+  var midUnlocked = lv15Count >= MID_REQUIRED_LV15_COUNT;
+
   var trainerPool;
-  if(highestLevel >= 25){
+  if(highestLevel >= 25 && midUnlocked){
     // All tiers available — pick tier by score as a bonus
     if(scorePct >= 90)      trainerPool = hardTrainers.length ? hardTrainers : regionPool;
     else if(scorePct >= 70) trainerPool = midTrainers.length  ? midTrainers  : regionPool;
     else                    trainerPool = easyTrainers.length ? easyTrainers : regionPool;
-  } else if(highestLevel >= 15){
+  } else if(midUnlocked){
     // Mid + easy unlocked — hard locked
     if(scorePct >= 70 && midTrainers.length) trainerPool = midTrainers;
     else                                      trainerPool = easyTrainers.length ? easyTrainers : regionPool;
@@ -12711,7 +12979,8 @@ function openTrainerBattle(scorePct){
     // Only easy unlocked
     trainerPool = easyTrainers.length ? easyTrainers : regionPool;
     if(scorePct >= 70){
-      showToast("📈 Reach Lv.15 to battle mid-tier trainers!");
+      var remaining = MID_REQUIRED_LV15_COUNT - lv15Count;
+      showToast("📈 Get "+remaining+" more Pokémon to Lv.15 ("+lv15Count+"/"+MID_REQUIRED_LV15_COUNT+") to battle mid-tier trainers!");
     }
   }
 
