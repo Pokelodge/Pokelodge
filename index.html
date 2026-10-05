@@ -1566,6 +1566,10 @@ footer a{color:var(--navy);text-decoration:none}
   position:absolute;right:16px;top:38px;z-index:7;width:220px;height:220px;
   image-rendering:pixelated;image-rendering:crisp-edges;pointer-events:none;
 }
+.raid-wildfire-fx{
+  position:absolute;inset:0;z-index:7;width:100%;height:100%;
+  image-rendering:pixelated;image-rendering:crisp-edges;pointer-events:none;
+}
 .raid-redclouds-fx{
   position:absolute;z-index:2;pointer-events:none;
   image-rendering:pixelated;image-rendering:crisp-edges;
@@ -1936,6 +1940,9 @@ footer a{color:var(--navy);text-decoration:none}
   <button class="shop-nav-btn" id="friends-btn" onclick="openFriends()" title="Friends List" style="position:relative">
     <i class="ti ti-users"></i><span class="friends-badge" id="friends-badge"></span>
   </button>
+  <button class="shop-nav-btn" onclick="openPvpLobby()" title="Battle a Friend">
+    ⚔️
+  </button>
   <button class="settings-btn" onclick="openSettings()" title="Settings">
     <i class="ti ti-settings"></i>
   </button>
@@ -1978,6 +1985,23 @@ footer a{color:var(--navy);text-decoration:none}
   <div class="friend-card-modal" id="friend-card-modal"></div>
 </div>
 
+<!-- PVP -->
+<div class="friends-overlay" id="pvp-lobby-overlay" onclick="if(event.target===this)closePvpLobby()">
+  <div class="friends-modal">
+    <div class="friends-header"><span>⚔️ BATTLE A FRIEND</span><span class="friends-close" onclick="closePvpLobby()">✕</span></div>
+    <div id="pvp-lobby-body" style="padding:1.2rem 1.4rem;overflow-y:auto"></div>
+  </div>
+</div>
+<div class="friends-overlay" id="pvp-join-overlay" onclick="if(event.target===this)pvpClose()">
+  <div class="friends-modal">
+    <div class="friends-header"><span>🔗 JOIN A BATTLE</span><span class="friends-close" onclick="pvpClose()">✕</span></div>
+    <div id="pvp-join-body" style="padding:1.2rem 1.4rem;overflow-y:auto"></div>
+  </div>
+</div>
+<div class="raid-battle-overlay" id="pvp-battle-overlay">
+  <div class="raid-battle-modal" id="pvp-battle-modal"></div>
+</div>
+
 <!-- SETTINGS MODAL -->
 <div class="settings-overlay" id="settings-overlay" onclick="if(event.target===this)closeSettings()">
   <div class="settings-modal">
@@ -1996,9 +2020,12 @@ footer a{color:var(--navy);text-decoration:none}
       <div class="settings-pool-info" id="settings-pool-info"></div>
       <div class="settings-section-label" style="margin-top:1.25rem">🧪 Testing</div>
       <p class="settings-desc">For testing only — instantly adds Pokédollars to your account.</p>
-      <div style="margin:0 1.5rem">
+      <div style="margin:0 1.5rem;display:flex;flex-direction:column;gap:10px">
         <button class="settings-save-btn" style="background:#2e8b57" onclick="giveTestMoney()">
           <i class="ti ti-coin"></i> Give ₱999,999
+        </button>
+        <button class="settings-save-btn" style="background:#f5c33b;color:#1a1a1a" onclick="giveAshCapPikachu()">
+          🧢 Get Ash's Pikachu (S-Rank)
         </button>
       </div>
     </div>
@@ -5782,6 +5809,37 @@ function spriteOnerrorGmax(id, shiny, back){
   return "this.onerror=function(){"+restChain+"};this.src=&quot;"+staticSrc+"&quot;";
 }
 
+// Cosmetic Ash's-cap Pikachu (from the Settings "testing" button) uses its own cap
+// art wherever its sprite shows, falling back to a normal Pikachu sprite if that
+// art fails to load — everywhere else just behaves like spriteUrl/spriteOnerror.
+// "Pikachu (Original Cap)" isn't in Showdown's static dex folder (that's a cosmetic
+// forme, not a battle forme), but PokeAPI's own sprite repo hosts it under its
+// internal numeric id 10094 — that's the reliable source, with Showdown's guess
+// and finally a plain Pikachu as fallbacks if that ever moves.
+var CAP_PIKACHU_CANDIDATES = {
+  front: [
+    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10094.png',
+    PS_DEX + 'pikachu-original-cap.png',
+  ],
+  frontShiny: [
+    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10094.png',
+    PS_DEX_SHINY + 'pikachu-original-cap.png',
+  ],
+};
+function pSpriteUrl(p, back){
+  if(p && p.capPikachu){
+    return (p.shiny ? CAP_PIKACHU_CANDIDATES.frontShiny : CAP_PIKACHU_CANDIDATES.front)[0];
+  }
+  return spriteUrl(p.id, p.shiny, back);
+}
+function pSpriteOnerror(p, back){
+  if(p && p.capPikachu){
+    var attrs = multiSpriteAttrs((p.shiny ? CAP_PIKACHU_CANDIDATES.frontShiny : CAP_PIKACHU_CANDIDATES.front).slice(1), p.id, p.shiny);
+    return attrs.onerrHtml;
+  }
+  return spriteOnerror(p.id, p.shiny);
+}
+
 function fallbackUrl(id, shiny){
   // PS dex sprite (static PNG, 2D) as first fallback
   var slug = pokeSlug(id);
@@ -8927,6 +8985,245 @@ function raidActivateMax(){
 // ── G-Max Volt Crash impact animation (adapted from a user-supplied "Triple Bolt"
 // canvas sketch) — plays once over the boss when Pikachu lands its signature move,
 // then hands control back to the battle flow. ──
+
+// ── G-Max Wildfire impact animation (adapted from a user-supplied "Pixel Phoenix"
+// canvas sketch) — a phoenix launches from Charizard's side of the field, flies
+// across, and detonates into a fire tornado over the boss. Sprite generation runs
+// once at load; each move just spins up fresh particle state on a fresh canvas. ──
+var _phoenixPrecomp = (function(){
+  var OXs=54, OYs=38;
+  var hex = function(c){ return [parseInt(c.slice(1,3),16), parseInt(c.slice(3,5),16), parseInt(c.slice(5,7),16)]; };
+  var R = Math.round;
+  function grad(st,u){
+    for(var i=1;i<st.length;i++){
+      if(u<=st[i][0]){
+        var a=st[i-1][0], ca=st[i-1][1], b=st[i][0], cb=st[i][1], k=(u-a)/(b-a), A=hex(ca), B=hex(cb);
+        return 'rgb('+R(A[0]+(B[0]-A[0])*k)+','+R(A[1]+(B[1]-A[1])*k)+','+R(A[2]+(B[2]-A[2])*k)+')';
+      }
+    }
+    return st[st.length-1][1];
+  }
+  var FRONT=[[0,'#fff6b0'],[.3,'#ffd23a'],[.65,'#ff7a1c'],[1,'#d01a10']];
+  var BACK=[[0,'#ffb040'],[.35,'#e0601a'],[.7,'#a82010'],[1,'#6a0c0c']];
+  var TAILC=[[0,'#ffd23a'],[.4,'#ff8a1c'],[.8,'#d01a10'],[1,'#7a1010']];
+  var COV=[[0,'#fff6b0'],[1,'#ffb040']];
+  function mkc(w,h){ var c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+  function dot(g,x,y,r,col){ g.fillStyle=col; var s=Math.max(1,R(r*2)); g.fillRect(R(x-s/2),R(y-s/2),s,s); }
+  function feather(g,x0,y0,ang,len,w0,st,wig,ph){
+    var dx=Math.cos(ang), dy=Math.sin(ang);
+    for(var s=0;s<=len;s+=.7){
+      var u=s/len, o=Math.sin(s*.3+ph)*wig*u;
+      dot(g,x0+dx*s-dy*o,y0+dy*s+dx*o,w0*Math.pow(1-u,.7)+.4,grad(st,u));
+    }
+  }
+  function ellp(g,cx,cy,rx,ry,col){
+    g.fillStyle=col;
+    for(var y=-ry;y<=ry;y++){ var w=R(rx*Math.sqrt(1-y*y/(ry*ry+.01))); g.fillRect(R(cx-w),R(cy+y),2*w+1,1); }
+  }
+  function wing(g,th,st,sx,sy,k,ph,wm){
+    wm = wm===undefined?1:wm;
+    var n=9, j, a, len;
+    for(j=0;j<n;j++){ a=th+(j-(n-1)/2)*.25; len=(15+15*Math.sin(Math.PI*(j+.5)/n))*k; feather(g,sx,sy,a,len,1.2*wm,st,1.8*wm,ph+j); }
+    for(j=0;j<n;j++){ a=th+(j-(n-1)/2)*.21; len=(7+7*Math.sin(Math.PI*(j+.5)/n))*k; feather(g,sx,sy,a,len,1.3*wm,COV,.8*wm,ph+j*.6); }
+  }
+  var WANG=[-100,-135,-175,150,-175,-135];
+  function mkPhoenix(fr){
+    var c=mkc(108,76), g=c.getContext('2d'); g.translate(OXs,OYs);
+    var th=WANG[fr]*Math.PI/180, ph=fr*1.1;
+    wing(g,th+.15,BACK,-3,-7,.85,ph+1);
+    [[152,26],[162,30],[172,31],[182,28],[192,24]].forEach(function(t,i){ feather(g,-11,2,t[0]*Math.PI/180,t[1],1.6,TAILC,3.5,ph+i); });
+    ellp(g,0,0,10,5,'#ff6a14'); ellp(g,2,1,8,3,'#ffc22e'); ellp(g,5,0,5,2,'#ffe27a');
+    ellp(g,9,-4,4,4,'#ff8a1c'); ellp(g,14,-8,4,3,'#ffd23a'); ellp(g,15,-8,2,1,'#ffe9a0');
+    g.fillStyle='#fff3c8'; g.fillRect(17,-8,3,2); g.fillRect(20,-7,2,1); g.fillStyle='#ff8a1c'; g.fillRect(17,-6,2,1);
+    g.fillStyle='#fff'; g.fillRect(14,-10,2,2); g.fillStyle='#d01a10'; g.fillRect(15,-10,1,2);
+    [[-120,10],[-142,12],[-100,8]].forEach(function(t,i){ feather(g,12,-10,t[0]*Math.PI/180,t[1],.8,FRONT,1.5,ph+i*2); });
+    g.fillStyle='#ffb040'; g.fillRect(-2,5,2,5); g.fillRect(3,5,2,4); g.fillStyle='#fff6b0'; g.fillRect(-3,10,3,1); g.fillRect(2,9,3,1);
+    wing(g,th,FRONT,2,-4,1,ph);
+    return c;
+  }
+  var PHX = []; for(var i=0;i<6;i++) PHX.push(mkPhoenix(i));
+  function mkTiny(fr){
+    var c=mkc(40,30), g=c.getContext('2d'); g.translate(22,15);
+    var th=WANG[fr]*Math.PI/180, ph=fr*1.1;
+    wing(g,th+.15,BACK,-1,-2,.38,ph+1,.4);
+    [[160,11],[175,12],[190,10]].forEach(function(t,i){ feather(g,-4,1,t[0]*Math.PI/180,t[1],.6,TAILC,1.2,ph+i); });
+    ellp(g,0,0,4,2,'#ff6a14'); ellp(g,1,0,3,1,'#ffc22e'); ellp(g,4,-2,2,2,'#ffd23a');
+    g.fillStyle='#fff3c8'; g.fillRect(6,-2,2,1); g.fillStyle='#d01a10'; g.fillRect(5,-3,1,1);
+    feather(g,4,-4,-2.1,4,.5,FRONT,.5,ph);
+    wing(g,th,FRONT,1,-2,.38,ph,.4);
+    return c;
+  }
+  var TINY = []; for(i=0;i<6;i++) TINY.push(mkTiny(i));
+  return { PHX:PHX, TINY:TINY };
+})();
+
+function raidPlayWildfireAnim(sceneEl, cb){
+  if(!sceneEl){ cb(); return; }
+  var W=192, H=108, SX=30, SY=84, TL=.8, IX=180, IY=12;
+  var ANG = Math.atan2(IY-SY, IX-SX), DD = Math.hypot(IX-SX, IY-SY), DX = Math.cos(ANG), DY = Math.sin(ANG);
+  var PHX = _phoenixPrecomp.PHX, TINY = _phoenixPrecomp.TINY;
+
+  var cv = document.createElement('canvas');
+  cv.width = W; cv.height = H; cv.className = 'raid-wildfire-fx';
+  sceneEl.appendChild(cv);
+  var ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+
+  var rnd = function(a,b){ return a+Math.random()*(b-a); };
+  var R = Math.round;
+  var clamp = function(v,a,b){ a=a===undefined?0:a; b=b===undefined?1:b; return Math.min(b,Math.max(a,v)); };
+
+  var t0, P, go, boom, te;
+  function sp(x,y,vx,vy,life,size,g,k){ k=k||{}; var o={x:x,y:y,vx:vx,vy:vy,life:life,age:0,size:size,g:g}; for(var key in k) o[key]=k[key]; P.push(o); }
+  function ageCol(f){ return f<.15?'#fff6c8':f<.35?'#ffd23a':f<.6?'#ff8a1c':f<.8?'#d93a12':'#4a2a2a'; }
+  function disc(cx,cy,r,col,t){
+    ctx.fillStyle=col;
+    for(var y=Math.max(0,Math.floor(cy-r*1.5)); y<=Math.min(H,cy+r*1.5); y++){
+      for(var x=Math.max(0,Math.floor(cx-r*1.5)); x<=Math.min(W,cx+r*1.5); x++){
+        var dx=x-cx, dy=y-cy, d=Math.hypot(dx,dy), a=Math.atan2(dy,dx);
+        var n=1+.16*(Math.sin(a*9+t*8)+Math.sin(a*5-t*5))/2;
+        if(d<r*n) ctx.fillRect(x,y,1,1);
+      }
+    }
+  }
+  function ell(cx,cy,rx,ry,col,al){
+    ctx.fillStyle=col; ctx.globalAlpha=al;
+    for(var y=-ry;y<=ry;y++){ var w=R(rx*Math.sqrt(1-y*y/(ry*ry+.01))); ctx.fillRect(cx-w,cy+y,2*w+1,1); }
+    ctx.globalAlpha=1;
+  }
+  var wx = function(cx,lx,ly){ return cx+lx*DX-ly*DY; }, wy = function(cy,lx,ly){ return cy+lx*DY+ly*DX; };
+  function explode(){
+    var i,a,v;
+    for(i=0;i<300;i++){ a=rnd(0,6.28); v=rnd(20,175); sp(IX,IY,Math.cos(a)*v,Math.sin(a)*v,rnd(.5,1.5),rnd(2,5),30,{drag:1.2}); }
+    for(i=0;i<80;i++){ a=rnd(0,6.28); v=rnd(40,190); sp(IX,IY,Math.cos(a)*v,Math.sin(a)*v,rnd(.8,1.8),1,140,{c:'#fff3a0'}); }
+    for(i=0;i<60;i++) sp(IX+rnd(-22,22),IY+rnd(-18,18),rnd(-14,6),rnd(-6,22),rnd(1,2),rnd(3,6),-10,{drag:.5});
+    for(i=0;i<34;i++){ a=rnd(0,6.28); v=rnd(10,60); sp(IX,IY,Math.cos(a)*v,Math.sin(a)*v,rnd(1.4,2.2),rnd(2,3),-25,{c:['#ffd23a','#ff8a1c','#fff6b0'][i%3],drag:.4}); }
+    for(i=0;i<40;i++) sp(IX+rnd(-16,16),IY+rnd(-12,12),rnd(-30,10),rnd(-5,25),rnd(1,1.8),rnd(4,7),-6,{smoke:1});
+  }
+  var TBX=162, TBY=58, THT=58;
+  function tpos(h,Ht,tt,k){
+    var q=h/Math.max(Ht,1), r=3+20*Math.pow(q,1.1), cxj=TBX+Math.sin(h*.08+tt*6)*3*q, th=h*.22+tt*11+k*Math.PI/3;
+    return { x:cxj+Math.cos(th)*r, z:Math.sin(th), y:TBY-h+Math.sin(th)*r*.22, q:q, th:th };
+  }
+  function tinyAt(tt){
+    var p=clamp((tt-.5)/1.2), h=6+46*Math.sin(Math.PI*p), q=h/THT, rho=3+20*Math.pow(q,1.1)+10, ph=tt*11, cxj=TBX+Math.sin(h*.08+tt*6)*3*q;
+    return { x:cxj+Math.cos(ph)*rho, y:TBY-h+Math.sin(ph)*rho*.22, z:Math.sin(ph) };
+  }
+  function drawTiny(tt,al){
+    var a=tinyAt(tt), b=tinyAt(tt+.02), dx=b.x-a.x, dy=b.y-a.y;
+    ctx.save(); ctx.globalAlpha=al; ctx.translate(R(a.x),R(a.y));
+    var rot;
+    if(dx<0){ ctx.scale(-1,1); rot=Math.atan2(dy,-dx); } else rot=Math.atan2(dy,dx);
+    ctx.rotate(clamp(rot,-.7,.7));
+    ctx.drawImage(TINY[Math.floor(tt*16)%6],-22,-15);
+    ctx.restore(); ctx.globalAlpha=1;
+  }
+  function tornado(u,tt){
+    var env=clamp(u/.15)*clamp((1-u)/.25), Ht=THT*(1-Math.pow(1-clamp(u/.3),3));
+    ell(TBX,TBY,R(24*env),4,'#ff6a14',.3*env);
+    var pts=[], j, k;
+    for(j=0;j<=52;j++) for(k=0;k<6;k++) pts.push(tpos(Ht*j/52,Ht,tt,k));
+    pts.sort(function(a,b){ return a.z-b.z; });
+    ctx.globalAlpha=env;
+    pts.forEach(function(p){
+      var f=p.z>0, sz=f?4:3;
+      ctx.fillStyle = f ? (p.q<.3?'#ffd23a':p.q<.65?'#ff8a1c':'#e8401a') : (p.q<.3?'#e8801a':p.q<.65?'#c8300e':'#8a1408');
+      ctx.fillRect(R(p.x-sz/2),R(p.y-sz/2),sz,sz);
+    });
+    for(var h=0;h<Ht;h+=2){
+      var q=h/Ht; ctx.fillStyle = q<.5?'#fff6c8':'#ffd23a'; ctx.globalAlpha=env*(1-q*.6);
+      ctx.fillRect(R(TBX+Math.sin(h*.08+tt*6)*3*q),R(TBY-h),2,2);
+    }
+    ctx.globalAlpha=1;
+  }
+
+  t0=performance.now(); P=[]; go=false; boom=false; te=0;
+
+  function frame(now){
+    if(!cv.isConnected){ return; } // battle screen moved on without us
+    var t=(now-t0)/1000, dt=Math.min(.05,(now-(frame.l||now))/1000); frame.l=now;
+    var s=t-TL, fly=s>=0;
+    var d=fly?Math.min(DD-22,25*s+200*s*s):0, cx=SX+DX*d, cy=SY+DY*d+(fly&&!boom?Math.sin(t*14)*1.2:0);
+    var k=Math.min(1,t/TL);
+    if(!fly){
+      for(var i=0;i<4;i++){
+        var a0=rnd(0,6.28), rr0=rnd(28,52), life0=.35;
+        sp(SX+Math.cos(a0)*rr0,SY+Math.sin(a0)*rr0,-Math.cos(a0)*rr0/life0,-Math.sin(a0)*rr0/life0,life0,2,0,{c:['#ffd23a','#ff8a1c'][i%2]});
+      }
+    }
+    if(fly&&!go){
+      go=true;
+      for(i=0;i<110;i++){ var a1=rnd(0,6.28), v1=rnd(30,150); sp(SX,SY,Math.cos(a1)*v1+DX*40,Math.sin(a1)*v1+DY*40,rnd(.4,1),rnd(2,5),0,{drag:1.5}); }
+    }
+    if(fly&&!boom&&d>=DD-22){ boom=true; te=t; explode(); }
+    var tt=boom?t-te:0;
+    var su=(tt-.55)/1, pu=(tt-.5)/1.2;
+    if(boom&&pu>=0&&pu<1){ var p0=tinyAt(tt); for(i=0;i<2;i++) sp(p0.x+rnd(-1,1),p0.y+rnd(-1,1),rnd(-15,15),rnd(-15,15),rnd(.3,.6),rnd(1,2),-20); }
+    if(boom&&su>=0&&su<1){
+      var Ht0=THT*(1-Math.pow(1-clamp(su/.3),3));
+      for(i=0;i<6;i++){ var p1=tpos(rnd(0,Ht0),Ht0,tt,Math.floor(rnd(0,6))); sp(p1.x,p1.y,-Math.sin(p1.th)*50+rnd(-10,10),-rnd(30,80),rnd(.3,.6),rnd(1,3),-10); }
+    }
+    if(fly&&!boom){
+      for(i=0;i<5;i++){ var lx0=rnd(-40,-22), ly0=rnd(0,12), v2=rnd(10,50); sp(wx(cx,lx0,ly0),wy(cy,lx0,ly0),-DX*v2+rnd(-12,12),-DY*v2+rnd(-12,12),rnd(.4,.9),rnd(2,4),-15); }
+      for(i=0;i<4;i++){ var lx1=rnd(-14,2), ly1=rnd(-26,-8), v3=rnd(10,40); sp(wx(cx,lx1,ly1),wy(cy,lx1,ly1),-DX*v3+rnd(-15,15),-DY*v3+rnd(-25,0),rnd(.3,.7),rnd(2,3),-30); }
+      if(Math.random()<.6) sp(wx(cx,rnd(-30,0),rnd(-8,10)),wy(cy,rnd(-30,0),rnd(-8,10)),rnd(-10,10),-rnd(20,50),rnd(.8,1.4),1,-5,{c:Math.random()<.5?'#ffd23a':'#fff6b0'});
+      if(Math.random()<.5) sp(wx(cx,-20,5),wy(cy,-20,5),-DX*rnd(10,30),-DY*rnd(10,30),1.1,rnd(4,6),-4,{smoke:1});
+    }
+    P.forEach(function(p){ p.age+=dt; p.vy+=p.g*dt; var dr=1-(p.drag||0)*dt; p.vx*=dr; p.vy*=dr; p.x+=p.vx*dt; p.y+=p.vy*dt; });
+    P = P.filter(function(p){ return p.age<p.life; });
+
+    ctx.clearRect(0,0,W,H); // transparent — let the raid scene show through behind the effect
+    var sh = boom?(tt<.7?9*(1-tt/.7):0):fly?(s<.4?4*(1-s/.4):0):1.5*k;
+    ctx.save();
+    ctx.translate(R(rnd(-sh,sh)), R(rnd(-sh,sh)));
+
+    P.forEach(function(p){ if(!p.smoke) return; var f=p.age/p.life; ctx.globalAlpha=.4*(1-f); ctx.fillStyle='#4a3a40'; var q=R(p.size*(1+f*1.5)); ctx.fillRect(R(p.x),R(p.y),q,q); });
+    ctx.globalAlpha=1;
+    P.forEach(function(p){ if(p.smoke) return; var f=p.age/p.life; ctx.globalAlpha=f>.7?(1-f)/.3:1; ctx.fillStyle=p.c||ageCol(f); var q=Math.max(1,R(p.size*(p.c?1:1-f*.5))); ctx.fillRect(R(p.x),R(p.y),q,q); });
+    ctx.globalAlpha=1;
+
+    if(fly){
+      var rr=s*170;
+      if(rr<95){ ctx.fillStyle='#ffe9b0'; ctx.globalAlpha=1-rr/95; for(var a2=0;a2<=6.3;a2+=.012) ctx.fillRect(R(SX+Math.cos(a2)*rr),R(SY+Math.sin(a2)*rr),2,2); ctx.globalAlpha=1; }
+    }
+    if(!fly){
+      var r0=3+7*(1-Math.pow(1-k,2));
+      disc(SX,SY,r0,'#b8260c',t); disc(SX,SY,r0*.78,'#ff6a14',t); disc(SX,SY,r0*.5,'#ffc22e',t); disc(SX,SY,r0*.25,'#fff1b0',t);
+    }
+    if(boom){
+      var kk=Math.min(1,tt/.45), Rr=46*(1-Math.pow(1-kk,3));
+      ctx.globalAlpha = tt<.5?1:Math.max(0,1-(tt-.5)/.6);
+      disc(IX,IY,Rr,'#b8260c',tt*2); disc(IX,IY,Rr*.8,'#ff6a14',tt*2); disc(IX,IY,Rr*.58,'#ffc22e',tt*2); disc(IX,IY,Rr*.3*(1-tt*.6),'#fffbe0',tt*2);
+      ctx.globalAlpha=1;
+      var rr2=tt*170;
+      if(rr2<110){ ctx.fillStyle='#ffe9b0'; ctx.globalAlpha=1-rr2/110; for(var a3=0;a3<=6.3;a3+=.012) ctx.fillRect(R(IX+Math.cos(a3)*rr2),R(IY+Math.sin(a3)*rr2),2,2); ctx.globalAlpha=1; }
+    }
+    var tinyOn=boom&&pu>=0&&pu<1, tal=clamp(pu/.1)*clamp((1-pu)/.1);
+    if(tinyOn && tinyAt(tt).z<0) drawTiny(tt,tal);
+    if(boom && su>=0 && su<1) tornado(su,tt);
+    if(tinyOn && tinyAt(tt).z>=0) drawTiny(tt,tal);
+    if(fly&&!boom){
+      ell(R(cx),R(cy),34,22,'#ff6a14',.07); ell(R(cx),R(cy),24,15,'#ffc22e',.09);
+      ctx.globalAlpha=clamp(s/.12); ctx.save(); ctx.translate(R(cx),R(cy)); ctx.rotate(ANG);
+      ctx.drawImage(PHX[Math.floor(t*14)%6],-54,-38);
+      ctx.restore(); ctx.globalAlpha=1;
+    }
+    ctx.restore();
+    if(fly&&s<.12){ ctx.fillStyle='#ffe0a0'; ctx.globalAlpha=.6*(1-s/.12); ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
+    if(boom){
+      if(tt<.15){ ctx.fillStyle='#fff'; ctx.globalAlpha=1-tt/.15; ctx.fillRect(0,0,W,H); }
+      if(tt<1.6){ ctx.fillStyle='#ff7a1c'; ctx.globalAlpha=.22*(1-tt/1.6); ctx.fillRect(0,0,W,H); }
+      ctx.globalAlpha=1;
+    }
+    if(boom && tt>2.4){
+      if(cv.parentNode) cv.parentNode.removeChild(cv);
+      cb();
+      return; // one-shot: stop here instead of looping back to reset()
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
 function raidPlayVoltCrashAnim(sceneEl, cb){
   if(!sceneEl){ cb(); return; }
   var cv = document.createElement('canvas');
@@ -9019,6 +9316,12 @@ function raidPlayVoltCrashAnim(sceneEl, cb){
   requestAnimationFrame(frame);
 }
 
+// G-Max signature moves with a custom impact animation, keyed by resolved move name.
+var RAID_SIGNATURE_ANIMS = {
+  'G-Max Volt Crash': raidPlayVoltCrashAnim,
+  'G-Max Wildfire': raidPlayWildfireAnim,
+};
+
 function raidPlayerMove(moveIdx){
   var bs = raidBattleState;
   if(bs.over || bs.busy) return; // busy-lock prevents rapid clicks queueing extra turns
@@ -9054,10 +9357,12 @@ function raidPlayerMove(moveIdx){
   }
   renderRaidBattle();
 
-  // Pikachu's G-Max Volt Crash gets its own impact animation before the turn continues.
-  if(resolved.name === 'G-Max Volt Crash'){
+  // Some G-Max signature moves get their own custom impact animation before the
+  // turn continues — keyed by the move's resolved display name.
+  var signatureAnim = RAID_SIGNATURE_ANIMS[resolved.name];
+  if(signatureAnim){
     var sceneEl = document.querySelector('#raid-battle-modal .raid-bt-scene');
-    raidPlayVoltCrashAnim(sceneEl, function(){
+    signatureAnim(sceneEl, function(){
       raidBattleAllyTurns(function(){
         if(!raidBattleState) return;
         if(raidBattleState.bossHp <= 0){ raidBattleWin(); return; }
@@ -9760,6 +10065,507 @@ function renderFriendsMode(){
   el.innerHTML = h;
 }
 
+/* ══════════════════ PvP (PeerJS / WebRTC, host-authoritative) ══════════════════
+   A real 1-vs-1 battle between two trainers, each bringing up to 3 Pokémon.
+   Reuses the same free public broker + STUN/TURN config as online raids, but is
+   otherwise an entirely separate connection/state — you can't accidentally mix up
+   a raid room and a PvP room. The host's browser is the single source of truth;
+   both players submit their chosen action each round and the host resolves it by
+   speed, then streams the result back so both screens update together. */
+var pvp = { role:null, peer:null, conn:null, roomCode:null, roomError:null,
+            myName:null, oppName:null, mySide:null, battle:null, selecting:null,
+            selectedIdx:[], endInfo:null, over:false, joinStatus:'', joinCode:'' };
+
+function pvpPeerId(code){ return 'pkl-pvp-'+code; }
+function pvpInviteLink(){ return location.origin+location.pathname+'?pvp='+pvp.roomCode; }
+
+/* ── Battle engine (pure-ish helpers; host runs these, guest only renders) ── */
+var PVP_STAT_KEYS = ['atk','def','spAtk','spDef','spd'];
+function pvpStageMult(stage){ return stage>=0 ? (2+stage)/2 : 2/(2-stage); }
+function pvpBuildFighter(entry){
+  var lvl = levelFromXp(entry.xp||0).level;
+  var base = getStats(entry.id); // [hp,atk,def,spAtk,spDef,spd]
+  var moves = (entry.moves && entry.moves.filter(Boolean).length) ? entry.moves.filter(Boolean) : getMovesAtLevel(entry.id, lvl);
+  var maxHp = calcHp(base[0], lvl);
+  return {
+    pokeId: entry.id, name: entry.name || POKE_NAMES[entry.id] || '???', shiny: !!entry.shiny, level: lvl,
+    types: (POKE_TYPES[entry.id]||'Normal').split('/'),
+    atk: Math.floor((2*base[1]*lvl)/100)+5, def: Math.floor((2*base[2]*lvl)/100)+5,
+    spAtk: Math.floor((2*base[3]*lvl)/100)+5, spDef: Math.floor((2*base[4]*lvl)/100)+5,
+    spd: Math.floor((2*base[5]*lvl)/100)+5,
+    maxHp: maxHp, hp: maxHp, moves: moves.slice(0,4),
+    status: null, stages: {atk:0,def:0,spAtk:0,spDef:0,spd:0}, fainted:false,
+  };
+}
+function pvpEffSpeed(f){ return Math.max(1, Math.round(f.spd * pvpStageMult(f.stages.spd))) * (f.status==='par'?0.5:1); }
+function pvpEffStat(f, key){ return Math.max(1, Math.round(f[key] * pvpStageMult(f.stages[key]))); }
+function pvpActive(side){ return side.party[side.active]; }
+function pvpSideAlive(side){ return side.party.some(function(f){ return !f.fainted; }); }
+function pvpLog(battle, text){ battle.log.push(text); if(battle.log.length>60) battle.log.shift(); }
+
+// Applies one move's damage + MOVE_EFFECTS-driven secondary effects (status, stat
+// stages, drain, recoil) — reusing the same move-effect data the rest of the game
+// already has, but now actually applying stat stage changes as real multipliers.
+function pvpUseMove(battle, atkSide, defSide, moveName){
+  var atk = pvpActive(atkSide), def = pvpActive(defSide);
+  if(atk.fainted) return;
+  if(atk.status==='par' && Math.random()<0.25){ pvpLog(battle, atk.name+' is paralyzed! It can\'t move!'); return; }
+  if(atk.status==='frz'){
+    if(Math.random()<0.2){ atk.status=null; pvpLog(battle, atk.name+' thawed out!'); }
+    else { pvpLog(battle, atk.name+' is frozen solid!'); return; }
+  }
+  if(atk.status==='slp'){
+    atk.sleepTurns = (atk.sleepTurns||0)+1;
+    if(atk.sleepTurns>=Math.ceil(Math.random()*3)){ atk.status=null; atk.sleepTurns=0; pvpLog(battle, atk.name+' woke up!'); }
+    else { pvpLog(battle, atk.name+' is fast asleep.'); return; }
+  }
+  if(atk.confused){
+    atk.confused--;
+    if(atk.confused<=0){ pvpLog(battle, atk.name+' snapped out of confusion!'); }
+    if(Math.random()<0.33){
+      var selfDmg = Math.max(1, Math.floor(((2*atk.level/5+2)*40*(pvpEffStat(atk,'atk')/Math.max(1,pvpEffStat(atk,'def'))))/50)+2);
+      atk.hp = Math.max(0, atk.hp-selfDmg);
+      pvpLog(battle, atk.name+' is confused! It hurt itself in its confusion! (-'+selfDmg+' HP)');
+      if(atk.hp<=0) atk.fainted=true;
+      return;
+    }
+  }
+  var power = getMovePower(moveName), type = MOVE_TYPES[moveName]||'Normal';
+  var eff = MOVE_EFFECTS[moveName] || {};
+  if(power>0){
+    var useSpecial = ['Water','Fire','Grass','Electric','Ice','Psychic','Dragon','Dark','Fairy'].indexOf(type)>=0;
+    var atkStat = pvpEffStat(atk, useSpecial?'spAtk':'atk'), defStat = pvpEffStat(def, useSpecial?'spDef':'def');
+    var r = raidSimpleDamage(atk.level, atkStat, defStat, power, type, def.types);
+    def.hp = Math.max(0, def.hp-r.dmg);
+    var effLabel = getEffectivenessLabel(r.mult);
+    pvpLog(battle, atk.name+' used '+moveName+'! '+(effLabel.label?effLabel.label+' ':'')+'(-'+r.dmg+' HP)');
+    if(eff.recoil){ var rec=Math.max(1,Math.round(r.dmg*eff.recoil)); atk.hp=Math.max(0,atk.hp-rec); pvpLog(battle, atk.name+' is hit by recoil! (-'+rec+' HP)'); if(atk.hp<=0) atk.fainted=true; }
+    if(eff.drain){ var heal=Math.max(1,Math.round(r.dmg*eff.drain)); atk.hp=Math.min(atk.maxHp,atk.hp+heal); pvpLog(battle, atk.name+' drained HP! (+'+heal+' HP)'); }
+    if(def.hp<=0){ def.fainted=true; pvpLog(battle, def.name+' fainted!'); return; }
+    if(eff.status && !def.status && Math.random()<(eff.chance!==undefined?eff.chance:1)){
+      if(eff.status==='flinch'){ def.flinched=true; }
+      else { def.status=eff.status; pvpLog(battle, def.name+' was '+({par:'paralyzed',psn:'poisoned',tox:'badly poisoned',brn:'burned',frz:'frozen',slp:'put to sleep'}[eff.status]||eff.status)+'!'); }
+    }
+    if(eff.statDrop && Math.random()<(eff.chance!==undefined?eff.chance:1)){
+      def.stages[eff.statDrop.stat] = Math.max(-6, def.stages[eff.statDrop.stat]-eff.statDrop.stages);
+      pvpLog(battle, def.name+"'s "+(STAT_LABEL[eff.statDrop.stat]||eff.statDrop.stat)+' fell!');
+    }
+    if(eff.statBoostDef){
+      def.stages[eff.statBoostDef.stat] = Math.min(6, def.stages[eff.statBoostDef.stat]+eff.statBoostDef.stages);
+      pvpLog(battle, def.name+"'s "+(STAT_LABEL[eff.statBoostDef.stat]||eff.statBoostDef.stat)+' rose!');
+    }
+  } else {
+    pvpLog(battle, atk.name+' used '+moveName+'!');
+    if(eff.statBoost){
+      atk.stages[eff.statBoost.stat] = Math.min(6, atk.stages[eff.statBoost.stat]+eff.statBoost.stages);
+      pvpLog(battle, atk.name+"'s "+(STAT_LABEL[eff.statBoost.stat]||eff.statBoost.stat)+' rose!');
+    }
+    // Pure status moves that lower the TARGET's stat (Growl, Leer, Tail Whip, etc.)
+    // deal no damage, so this never went through the damaging-move branch above.
+    if(eff.statDrop && Math.random()<(eff.chance!==undefined?eff.chance:1)){
+      def.stages[eff.statDrop.stat] = Math.max(-6, def.stages[eff.statDrop.stat]-eff.statDrop.stages);
+      pvpLog(battle, def.name+"'s "+(STAT_LABEL[eff.statDrop.stat]||eff.statDrop.stat)+' fell!');
+    }
+    if(eff.selfHeal){
+      var h = Math.round(atk.maxHp*eff.selfHeal);
+      atk.hp = Math.min(atk.maxHp, atk.hp+h);
+      pvpLog(battle, atk.name+' restored its HP!');
+      if(eff.status && eff.selfStatus){ atk.status=eff.status; pvpLog(battle, atk.name+' fell asleep!'); }
+    }
+    if(eff.status && !eff.selfStatus && !def.status && Math.random()<(eff.chance!==undefined?eff.chance:1)){
+      if(eff.status==='cnf'){ def.confused = Math.ceil(Math.random()*3)+1; pvpLog(battle, def.name+' became confused!'); }
+      else { def.status=eff.status; pvpLog(battle, def.name+' was afflicted!'); }
+    }
+  }
+}
+var STAT_LABEL = {atk:'Attack', def:'Defense', spAtk:'Sp. Atk', spDef:'Sp. Def', spd:'Speed'};
+
+function pvpEndOfTurnStatus(battle, side){
+  var f = pvpActive(side);
+  if(f.fainted) return;
+  if(f.status==='psn'){ var d=Math.max(1,Math.round(f.maxHp/8)); f.hp=Math.max(0,f.hp-d); pvpLog(battle, f.name+' is hurt by poison! (-'+d+' HP)'); }
+  else if(f.status==='tox'){ f.toxCounter=(f.toxCounter||1); var d2=Math.max(1,Math.round(f.maxHp*f.toxCounter/16)); f.hp=Math.max(0,f.hp-d2); f.toxCounter++; pvpLog(battle, f.name+' is badly poisoned! (-'+d2+' HP)'); }
+  else if(f.status==='brn'){ var d3=Math.max(1,Math.round(f.maxHp/16)); f.hp=Math.max(0,f.hp-d3); pvpLog(battle, f.name+' is hurt by its burn! (-'+d3+' HP)'); }
+  if(f.hp<=0 && !f.fainted){ f.fainted=true; pvpLog(battle, f.name+' fainted!'); }
+}
+
+// Resolves one full round: switches first, then moves in speed order, then
+// residual status damage. `actions` is {0:{type,...}, 1:{type,...}}.
+function pvpResolveRound(battle, actions){
+  var sides = battle.sides;
+  [0,1].forEach(function(i){
+    var a = actions[i];
+    if(a && a.type==='switch'){
+      sides[i].active = a.toIdx;
+      pvpLog(battle, sides[i].name+' sent out '+pvpActive(sides[i]).name+'!');
+    }
+  });
+  var moveOrder = [0,1].filter(function(i){ return actions[i] && actions[i].type==='move'; });
+  moveOrder.sort(function(a,b){ return pvpEffSpeed(pvpActive(sides[b])) - pvpEffSpeed(pvpActive(sides[a])); });
+  moveOrder.forEach(function(i){
+    var other = 1-i;
+    if(!pvpSideAlive(sides[i]) || !pvpSideAlive(sides[other])) return;
+    if(pvpActive(sides[i]).fainted) return;
+    pvpUseMove(battle, sides[i], sides[other], actions[i].move);
+  });
+  [0,1].forEach(function(i){ if(pvpSideAlive(sides[i])) pvpEndOfTurnStatus(battle, sides[i]); });
+  sides.forEach(function(s){ var f=pvpActive(s); if(f) f.flinched=false; });
+  battle.turn++;
+  var loser = sides.findIndex(function(s){ return !pvpSideAlive(s); });
+  if(loser>=0){ battle.over = true; battle.winnerSide = 1-loser; }
+}
+
+/* ── Host ── */
+function pvpChooseParty(){
+  var pool = (party.length ? party : caught.map(function(_,i){return i;})).filter(function(i){return caught[i];});
+  return pool;
+}
+function pvpHostOpen(selectedIdxs){
+  pvpCleanup();
+  pvp.role = 'host'; pvp.myName = currentUser||'Host';
+  pvp.selectedIdx = selectedIdxs.slice(0,3);
+  if(typeof Peer === 'undefined'){ pvp.roomError = 'Online play needs an internet connection.'; renderPvpLobby(); return; }
+  pvp.roomError = null;
+  pvpOpenHostPeer(0);
+  renderPvpLobby();
+}
+function pvpOpenHostPeer(attempt){
+  var code = mpRandomCode();
+  var peer = mpNewPeer(pvpPeerId(code));
+  pvp.peer = peer;
+  peer.on('open', function(){ pvp.roomCode = code; renderPvpLobby(); });
+  peer.on('connection', function(conn){
+    if(pvp.conn){ try{ conn.close(); }catch(e){} return; } // only one opponent
+    pvp.conn = conn;
+    conn.on('data', function(d){ pvpHostOnData(d); });
+    conn.on('close', function(){ pvpHostOnOppGone(); });
+    conn.on('error', function(){ pvpHostOnOppGone(); });
+  });
+  peer.on('error', function(err){
+    if(err && err.type==='unavailable-id' && attempt<5){ try{peer.destroy();}catch(e){} pvpOpenHostPeer(attempt+1); return; }
+    pvp.roomError = 'Could not open a battle room ('+((err&&err.type)||'error')+').';
+    renderPvpLobby();
+  });
+}
+function pvpHostOnData(d){
+  if(!d || typeof d!=='object') return;
+  if(d.type==='join'){
+    if(pvp.battle){ mpSafeSend(pvp.conn,{type:'refused', reason:'This battle already started.'}); return; }
+    var team = (Array.isArray(d.team)?d.team:[]).map(function(t){ return mpSanitizePoke(t); }).filter(Boolean).slice(0,3);
+    if(!team.length){ mpSafeSend(pvp.conn,{type:'refused', reason:'That team could not be used.'}); return; }
+    pvp.oppName = mpCleanName(d.name);
+    pvp.oppTeam = team;
+    mpSafeSend(pvp.conn, {type:'joined'});
+    renderPvpLobby();
+  } else if(d.type==='action'){
+    if(!pvp.battle || pvp.battle.over) return;
+    pvp.pendingActions = pvp.pendingActions || {};
+    pvp.pendingActions[1] = d.action;
+    pvpTryResolve();
+  }
+}
+function pvpHostOnOppGone(){
+  if(pvp.battle && !pvp.over){ pvpLog(pvp.battle, pvp.oppName+' disconnected.'); pvp.battle.over=true; pvp.battle.winnerSide=0; pvpBroadcast(); }
+  else { pvp.oppName=null; pvp.oppTeam=null; pvp.conn=null; renderPvpLobby(); }
+}
+function pvpHostStart(){
+  if(!pvp.oppTeam) return;
+  var myTeam = pvp.selectedIdx.map(function(i){ return pvpBuildFighter(caught[i]); });
+  var oppTeam = pvp.oppTeam.map(function(t){ return pvpBuildFighter({id:t.id, name:null, shiny:t.shiny, xp:xpForLevelSafe(t.level), moves:t.moves}); });
+  pvp.battle = { sides:[ {name:pvp.myName, party:myTeam, active:0}, {name:pvp.oppName, party:oppTeam, active:0} ], turn:1, log:[], over:false };
+  pvp.mySide = 0;
+  pvpLog(pvp.battle, 'The battle begins!');
+  mpSafeSend(pvp.conn, {type:'start', oppName:pvp.myName, oppTeam: pvp.selectedIdx.map(function(i){ var p=caught[i]; var lvl=levelFromXp(p.xp||0).level; var mv=(p.moves&&p.moves.filter(Boolean).length)?p.moves.filter(Boolean):getMovesAtLevel(p.id,lvl); return {id:p.id, shiny:!!p.shiny, level:lvl, moves:mv}; }) });
+  pvpBroadcast();
+  renderPvpBattleScreen();
+}
+// A safe stand-in for xpForLevel (which doesn't actually match levelFromXp's curve
+// elsewhere in this game) — walks levelFromXp forward to find matching XP exactly.
+function xpForLevelSafe(targetLevel){
+  var lo=0, hi=2000000;
+  while(lo<hi){ var mid=Math.floor((lo+hi)/2); if(levelFromXp(mid).level<targetLevel) lo=mid+1; else hi=mid; }
+  return lo;
+}
+function mpSanitizePokeGeneric(t){ return mpSanitizePoke(t); } // reuse the raid module's validator (id/level/moves checks)
+
+function pvpTryResolve(){
+  if(!pvp.pendingActions || pvp.pendingActions[0]===undefined || pvp.pendingActions[1]===undefined) return;
+  pvpResolveRound(pvp.battle, pvp.pendingActions);
+  pvp.pendingActions = {};
+  pvpBroadcast();
+  renderPvpBattleScreen();
+  if(pvp.battle.over) pvpHostFinish();
+}
+function pvpHostFinish(){
+  mpSafeSend(pvp.conn, {type:'end', winnerIsHost: pvp.battle.winnerSide===0});
+}
+function pvpBroadcast(){
+  if(pvp.role!=='host' || !pvp.conn) return;
+  mpSafeSend(pvp.conn, {type:'state', battle: pvp.battle});
+}
+
+/* ── Guest ── */
+function pvpJoinOpen(prefillCode){
+  pvp.role = null; pvp.joined = false; pvp.joinStatus=''; pvp.over=false;
+  pvp.joinCode = (prefillCode||'').toUpperCase();
+  pvp.selectedIdx = [];
+  renderPvpJoin();
+}
+function pvpGuestToggleSelect(i){
+  var at = pvp.selectedIdx.indexOf(i);
+  if(at>=0) pvp.selectedIdx.splice(at,1);
+  else if(pvp.selectedIdx.length<3) pvp.selectedIdx.push(i);
+  renderPvpJoin();
+}
+function pvpGuestJoin(){
+  var rawCode = (pvp.joinCode||'').trim();
+  var linkMatch = rawCode.match(/[?&]pvp=([A-Za-z0-9]+)/);
+  var code = (linkMatch?linkMatch[1]:rawCode).replace(/\s+/g,'').toUpperCase().replace(/^PKL-PVP-/,'');
+  if(!code){ pvp.joinStatus='Enter the battle code your friend sent you.'; renderPvpJoin(); return; }
+  if(!pvp.selectedIdx.length){ pvp.joinStatus='Pick at least 1 Pokémon (up to 3).'; renderPvpJoin(); return; }
+  if(typeof Peer==='undefined'){ pvp.joinStatus='Online play needs an internet connection.'; renderPvpJoin(); return; }
+  pvpCleanup();
+  pvp.role='guest'; pvp.joined=false; pvp.over=false; pvp.joinStatus='';
+  var team = pvp.selectedIdx.map(function(i){ var p=caught[i]; var lvl=levelFromXp(p.xp||0).level; var mv=(p.moves&&p.moves.filter(Boolean).length)?p.moves.filter(Boolean):getMovesAtLevel(p.id,lvl); return {id:p.id, shiny:!!p.shiny, level:lvl, moves:mv}; });
+  var peer = mpNewPeer(); pvp.peer = peer;
+  var timeout = setTimeout(function(){
+    if(!pvp.joined && pvp.role==='guest'){ pvpCleanup(); pvp.joinStatus='Could not connect. Check the code and try again.'; renderPvpJoin(); }
+  }, 25000);
+  peer.on('open', function(){
+    var conn = peer.connect(pvpPeerId(code), {serialization:'json', reliable:true});
+    pvp.conn = conn;
+    conn.on('open', function(){ mpSafeSend(conn, {type:'join', name:(currentUser||'Trainer'), team:team}); });
+    conn.on('data', function(d){ if(d && d.type==='joined') clearTimeout(timeout); pvpGuestOnData(d); });
+    conn.on('close', function(){ pvpGuestOnClose(); });
+    conn.on('error', function(){ pvpGuestOnClose(); });
+  });
+  peer.on('error', function(err){
+    clearTimeout(timeout);
+    pvp.joinStatus = (err&&err.type==='peer-unavailable') ? 'No battle room found with that code.' : 'Connection problem.';
+    pvpCleanup(); renderPvpJoin();
+  });
+}
+function pvpGuestOnData(d){
+  if(!d || typeof d!=='object') return;
+  if(d.type==='joined'){ pvp.joined=true; renderPvpJoin(); }
+  else if(d.type==='refused'){ pvpCleanup(); pvp.joinStatus=String(d.reason||'Could not join.'); renderPvpJoin(); }
+  else if(d.type==='start'){
+    pvp.mySide = 1; pvp.oppName = d.oppName;
+    var myTeam = pvp.selectedIdx.map(function(i){ return pvpBuildFighter(caught[i]); });
+    var oppTeam = d.oppTeam.map(function(t){ return pvpBuildFighter({id:t.id, shiny:t.shiny, xp:xpForLevelSafe(t.level), moves:t.moves}); });
+    pvp.battle = { sides:[ {name:d.oppName, party:oppTeam, active:0}, {name:currentUser||'Trainer', party:myTeam, active:0} ], turn:1, log:['The battle begins!'], over:false };
+    renderPvpBattleScreen();
+  }
+  else if(d.type==='state'){ pvp.battle = d.battle; renderPvpBattleScreen(); }
+  else if(d.type==='end'){ pvp.over=true; pvpShowEnd(!d.winnerIsHost); }
+  else if(d.type==='closed'){ if(!pvp.over) pvpNotice('The host closed the battle.'); }
+}
+function pvpGuestOnClose(){
+  if(pvp.over || pvp.role!=='guest') return;
+  pvpNotice(pvp.battle ? 'Lost connection to the host.' : 'The host left the room.');
+}
+function pvpNotice(text){
+  pvp.over = true;
+  var modal = document.getElementById('pvp-battle-modal');
+  if(modal) modal.innerHTML = '<div class="raid-battle-result"><h2>Battle ended</h2><p>'+mpEsc(text)+'</p><button onclick="pvpClose()">Close</button></div>';
+  document.getElementById('pvp-join-overlay').classList.remove('show');
+  document.getElementById('pvp-battle-overlay').classList.add('show');
+}
+
+/* ── Shared action submission (works for host or guest) ── */
+function pvpSubmitMove(moveName){
+  if(!pvp.battle || pvp.battle.over) return;
+  var action = {type:'move', move:moveName};
+  if(pvp.role==='host'){
+    pvp.pendingActions = pvp.pendingActions || {};
+    pvp.pendingActions[0] = action;
+    pvp.selecting = null;
+    renderPvpBattleScreen();
+    pvpTryResolve();
+  } else {
+    pvp.selecting = 'waiting';
+    renderPvpBattleScreen();
+    mpSafeSend(pvp.conn, {type:'action', action:action});
+  }
+}
+function pvpSubmitSwitch(toIdx){
+  if(!pvp.battle || pvp.battle.over) return;
+  var action = {type:'switch', toIdx:toIdx};
+  if(pvp.role==='host'){
+    pvp.pendingActions = pvp.pendingActions || {};
+    pvp.pendingActions[0] = action;
+    pvp.selecting = null;
+    renderPvpBattleScreen();
+    pvpTryResolve();
+  } else {
+    pvp.selecting = 'waiting';
+    renderPvpBattleScreen();
+    mpSafeSend(pvp.conn, {type:'action', action:action});
+  }
+}
+
+/* ── cleanup / close ── */
+function pvpCleanup(){
+  try{ if(pvp.conn){ mpSafeSend(pvp.conn,{type:'closed'}); pvp.conn.close(); } }catch(e){}
+  try{ if(pvp.peer) pvp.peer.destroy(); }catch(e){}
+  pvp.peer=null; pvp.conn=null; pvp.role=null; pvp.joined=false; pvp.oppTeam=null; pvp.oppName=null;
+}
+function pvpClose(){
+  pvpCleanup();
+  pvp.battle=null; pvp.over=false; pvp.selecting=null;
+  var jo=document.getElementById('pvp-join-overlay'), bo=document.getElementById('pvp-battle-overlay'), lo=document.getElementById('pvp-lobby-overlay');
+  if(jo) jo.classList.remove('show'); if(bo) bo.classList.remove('show'); if(lo) lo.classList.remove('show');
+}
+function pvpCopyInvite(){
+  var link = pvpInviteLink();
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function(){ showToast('Invite link copied!'); }, function(){ window.prompt('Copy this invite link:', link); });
+  else window.prompt('Copy this invite link:', link);
+}
+
+/* ── UI ── */
+function openPvpLobby(){
+  var ov = document.getElementById('pvp-lobby-overlay');
+  pvp.selectedIdx = [];
+  renderPvpLobby();
+  ov.classList.add('show');
+}
+function closePvpLobby(){
+  if(!pvp.battle) pvpCleanup();
+  document.getElementById('pvp-lobby-overlay').classList.remove('show');
+}
+function pvpLobbyTogglePick(i){
+  var at = pvp.selectedIdx.indexOf(i);
+  if(at>=0) pvp.selectedIdx.splice(at,1);
+  else if(pvp.selectedIdx.length<3) pvp.selectedIdx.push(i);
+  renderPvpLobby();
+}
+function pvpLobbyHostClick(){
+  if(!pvp.selectedIdx.length){ showToast('Pick at least 1 Pokémon!'); return; }
+  pvpHostOpen(pvp.selectedIdx);
+}
+function renderPvpLobby(){
+  var body = document.getElementById('pvp-lobby-body');
+  if(!body) return;
+  if(pvp.role==='host'){
+    var inviteHtml = pvp.roomError ? '<div class="raid-invite-box err">'+mpEsc(pvp.roomError)+'</div>'
+      : !pvp.roomCode ? '<div class="raid-invite-box">Opening battle room…</div>'
+      : '<div class="raid-invite-box"><div class="raid-invite-label">Battle code</div><div class="raid-invite-code">'+pvp.roomCode+'</div><button onclick="pvpCopyInvite()">📋 Copy invite link</button></div>';
+    var oppHtml = pvp.oppName
+      ? '<div class="mpj-player">👤 '+mpEsc(pvp.oppName)+' is ready! ('+pvp.oppTeam.length+' Pokémon)</div>'
+      : '<div class="mpj-hint">Waiting for a friend to join with your code…</div>';
+    body.innerHTML = inviteHtml + oppHtml +
+      (pvp.oppName ? '<button class="mpj-btn" onclick="pvpHostStart()">⚔️ Start Battle</button>' : '') +
+      '<button class="mpj-btn secondary" onclick="closePvpLobby()">Cancel</button>';
+    return;
+  }
+  var pool = pvpChooseParty();
+  var cards = pool.map(function(i){
+    var pp = caught[i], lvl = levelFromXp(pp.xp||0).level, sel = pvp.selectedIdx.indexOf(i)>=0;
+    return '<button class="mpj-poke'+(sel?' active':'')+'" onclick="pvpLobbyTogglePick('+i+')">'+
+      '<img src="'+spriteUrl(pp.id,pp.shiny||false)+'" onerror="'+spriteOnerror(pp.id,pp.shiny||false)+'"/>'+
+      '<span>'+mpEsc(pp.name)+'<br/>Lv'+lvl+'</span></button>';
+  }).join('');
+  body.innerHTML =
+    '<div class="mpj-hint">Pick up to 3 Pokémon, then host a room or join a friend\'s.</div>'+
+    '<div class="mpj-pokes">'+cards+'</div>'+
+    '<div style="font-size:12px;color:var(--muted);margin:.4rem 0 .8rem">'+pvp.selectedIdx.length+'/3 selected</div>'+
+    '<button class="mpj-btn" onclick="pvpLobbyHostClick()">🌐 Host a Battle</button>'+
+    '<button class="mpj-btn secondary" style="margin-top:8px" onclick="closePvpLobby();pvpJoinOpen(\'\')">🔗 Join with Code</button>';
+}
+function renderPvpJoin(){
+  var body = document.getElementById('pvp-join-body');
+  if(!body) return;
+  if(pvp.joined){
+    body.innerHTML = '<div class="mpj-status ok">✅ Joined! Waiting for '+mpEsc(pvp.oppName||'the host')+' to start…</div>'+
+      '<button class="mpj-btn secondary" onclick="pvpClose()">Leave</button>';
+    document.getElementById('pvp-join-overlay').classList.add('show');
+    return;
+  }
+  var pool = pvpChooseParty();
+  var cards = pool.map(function(i){
+    var pp = caught[i], lvl = levelFromXp(pp.xp||0).level, sel = pvp.selectedIdx.indexOf(i)>=0;
+    return '<button class="mpj-poke'+(sel?' active':'')+'" onclick="pvpGuestToggleSelect('+i+')">'+
+      '<img src="'+spriteUrl(pp.id,pp.shiny||false)+'" onerror="'+spriteOnerror(pp.id,pp.shiny||false)+'"/>'+
+      '<span>'+mpEsc(pp.name)+'<br/>Lv'+lvl+'</span></button>';
+  }).join('');
+  body.innerHTML =
+    '<label class="mpj-label">Battle code</label>'+
+    '<input id="pvp-join-code" class="mpj-input" maxlength="200" placeholder="Code or invite link" value="'+mpEsc(pvp.joinCode)+'" oninput="pvp.joinCode=this.value"/>'+
+    '<label class="mpj-label">Choose up to 3 Pokémon</label>'+
+    '<div class="mpj-pokes">'+cards+'</div>'+
+    '<div class="mpj-status'+(pvp.joinStatus?' err':'')+'">'+mpEsc(pvp.joinStatus)+'</div>'+
+    '<button class="mpj-btn" onclick="pvpGuestJoin()">Join Battle</button>';
+  document.getElementById('pvp-join-overlay').classList.add('show');
+}
+
+function renderPvpBattleScreen(){
+  document.getElementById('pvp-lobby-overlay').classList.remove('show');
+  document.getElementById('pvp-join-overlay').classList.remove('show');
+  document.getElementById('pvp-battle-overlay').classList.add('show');
+  var modal = document.getElementById('pvp-battle-modal');
+  var b = pvp.battle; if(!b) return;
+  var my = b.sides[pvp.mySide], opp = b.sides[1-pvp.mySide];
+  var myF = pvpActive(my), oppF = pvpActive(opp);
+
+  function hpBar(f){
+    var pct = Math.max(0, Math.round((f.hp/f.maxHp)*100));
+    var cls = pct>50?'green':(pct>20?'yellow':'red');
+    var statusTag = f.status ? ' <span style="color:#ffd23a">['+f.status.toUpperCase()+']</span>' : '';
+    return '<div class="raid-bt-boss-name">'+mpEsc(f.name)+statusTag+' <span>Lv'+f.level+'</span></div>'+
+      '<div class="raid-bt-boss-hptrack"><div class="raid-bt-boss-hpfill '+cls+'" style="width:'+pct+'%"></div></div>'+
+      '<div class="raid-bt-boss-hpnums">'+Math.max(0,f.hp)+' / '+f.maxHp+'</div>';
+  }
+  var needForceSwitch = myF.fainted && pvpSideAlive(my);
+  var waitingForOpp = pvp.role==='host' ? (pvp.pendingActions && pvp.pendingActions[0]!==undefined && pvp.pendingActions[1]===undefined)
+                                          : pvp.selecting==='waiting';
+
+  var actionsHtml;
+  if(b.over){
+    var won = b.winnerSide===pvp.mySide;
+    actionsHtml = '<div class="raid-max-active">'+(won?'🎉 You won!':'💥 You lost.')+'</div>';
+  } else if(needForceSwitch){
+    actionsHtml = '<div class="raid-max-active">'+myF.name+' fainted! Choose your next Pokémon.</div><div class="bw-move-grid">'+
+      my.party.map(function(f,i){
+        if(f.fainted) return '';
+        return '<button class="bw-move-cell" onclick="pvpSubmitSwitch('+i+')"><span class="bw-move-cell-name">'+mpEsc(f.name)+'</span><span class="bw-move-cell-type" style="background:#789">Lv'+f.level+'</span></button>';
+      }).join('')+'</div>';
+  } else if(waitingForOpp){
+    actionsHtml = '<div class="raid-max-active">Waiting for '+mpEsc(opp.name)+'…</div>';
+  } else if(pvp.selecting==='switch'){
+    actionsHtml = '<div class="bw-move-grid">'+my.party.map(function(f,i){
+      if(f.fainted) return '<button class="bw-move-cell" disabled><span class="bw-move-cell-name" style="opacity:.4">'+mpEsc(f.name)+' (fainted)</span></button>';
+      if(i===my.active) return '<button class="bw-move-cell" disabled><span class="bw-move-cell-name" style="opacity:.4">'+mpEsc(f.name)+' (active)</span></button>';
+      return '<button class="bw-move-cell" onclick="pvpSubmitSwitch('+i+')"><span class="bw-move-cell-name">'+mpEsc(f.name)+'</span><span class="bw-move-cell-type" style="background:#789">Lv'+f.level+'</span></button>';
+    }).join('')+'</div><div class="raid-max-active"><span style="cursor:pointer;text-decoration:underline" onclick="pvp.selecting=null;renderPvpBattleScreen()">← Back</span></div>';
+  } else {
+    actionsHtml = '<div class="bw-move-grid">'+myF.moves.map(function(m){
+      var mtype = MOVE_TYPES[m]||'Normal';
+      return '<button class="bw-move-cell" style="border-color:'+tc(mtype)+'" onclick="pvpSubmitMove('+fnArg(m)+')" data-move="'+mpEsc(m)+'">'+
+        '<span class="bw-move-cell-name">'+mpEsc(m)+'</span><span class="bw-move-cell-type" style="background:'+tc(mtype)+'">'+mtype.toUpperCase()+'</span></button>';
+    }).join('')+'</div>'+
+    '<div class="raid-max-active"><span style="cursor:pointer;text-decoration:underline" onclick="pvp.selecting=\'switch\';renderPvpBattleScreen()">🔄 Switch Pokémon</span></div>';
+  }
+
+  modal.innerHTML =
+    '<div class="raid-bt-scene">'+
+      '<div class="raid-bt-boss-hpbox">'+hpBar(oppF)+'</div>'+
+      '<img class="raid-bt-boss-spr" style="animation:none;filter:none" src="'+spriteUrl(oppF.pokeId,oppF.shiny)+'" onerror="'+spriteOnerror(oppF.pokeId,oppF.shiny)+'"/>'+
+      '<img class="raid-bt-player-spr" src="'+spriteUrl(myF.pokeId,myF.shiny,true)+'" onerror="'+spriteOnerror(myF.pokeId,myF.shiny)+'"/>'+
+      '<div class="raid-bt-player-hpbox" style="left:12px;bottom:12px;position:absolute;background:rgba(10,10,20,.55);border-radius:10px;padding:8px 12px;width:200px">'+hpBar(myF)+'</div>'+
+    '</div>'+
+    '<div class="raid-bt-bottom">'+
+      '<div class="raid-bt-log">'+(b.log||[]).slice(-6).map(function(l){return '<div>'+mpEsc(l)+'</div>';}).join('')+'</div>'+
+      '<div class="raid-bt-actions">'+actionsHtml+'</div>'+
+    '</div>';
+  if(b.over && !pvp._endShown){ pvp._endShown=true; setTimeout(function(){ pvpShowEnd(b.winnerSide===pvp.mySide); }, 1400); }
+}
+function pvpShowEnd(won){
+  var modal = document.getElementById('pvp-battle-modal');
+  modal.innerHTML = '<div class="raid-battle-result"><h2>'+(won?'🎉 Victory!':'💥 Defeat')+'</h2>'+
+    '<p>'+(won?'You defeated '+mpEsc(pvp.oppName||'your opponent')+'!':mpEsc(pvp.oppName||'Your opponent')+' won this time.')+'</p>'+
+    '<button onclick="pvpClose()">Close</button></div>';
+}
+
 /* ── Friend requests ──
    Requests live in one shared inbox key (not inside anyone's save file) so a request
    sent from one tab/account can't be overwritten by the recipient's own autosaves.
@@ -10034,7 +10840,8 @@ function renderFriendCardNow(username){
         '<div class="friend-card-stat"><div class="val">'+card.legendCount+'</div><div class="lbl">Legendary</div></div>'+
       '</div>'+
       '<div class="friend-card-party-label">Party</div>'+
-      '<div class="friend-card-party">'+(partyHtml || '<span style="font-size:12px;color:var(--muted)">No Pokémon yet</span>')+'</div>';
+      '<div class="friend-card-party">'+(partyHtml || '<span style="font-size:12px;color:var(--muted)">No Pokémon yet</span>')+'</div>'+
+      '<button class="mpj-btn" style="margin-top:14px" onclick="closeFriendCard();openPvpLobby()">⚔️ Battle '+mpEsc(username)+'</button>';
   }
   document.getElementById('friend-card-overlay').classList.add('show');
 }
@@ -10217,7 +11024,7 @@ function renderDex(){
         '<div class="dex-row caught'+(isSel?' selected':'')+'" onclick="selectDexEntry('+entry.caughtIdx+')">'+
           '<span class="dex-row-arrow">▶</span>'+
           '<span class="dex-row-num">'+numStr+'</span>'+
-          '<img class="dex-row-sprite" src="'+spriteUrl(entry.id,entry.shiny)+'" alt="'+name+'" onerror="'+spriteOnerror(entry.id,entry.shiny)+'"/>'+
+          '<img class="dex-row-sprite" src="'+pSpriteUrl(entry)+'" alt="'+name+'" onerror="'+pSpriteOnerror(entry)+'"/>'+
           '<span class="dex-row-name">'+name+'</span>'+
           (badge?'<span class="dex-row-badge">'+badge+'</span>':'')+
         '</div>';
@@ -10534,7 +11341,7 @@ function renderParty(){
       html+='<div class="'+cls+'" data-caught-idx="'+idx+'" title="'+p.name+' Lv.'+lvl+alertTitle+'">'+
         (badge?'<div class="party-badge">'+badge+'</div>':'')+
         (alertBadge?'<div class="party-badge-alert">'+alertBadge+'</div>':'')+
-        '<img class="party-sprite'+(p.shiny?' sg':'')+'" src="'+spriteUrl(p.id,p.shiny)+'" alt="'+p.name+'" onerror="'+spriteOnerror(p.id,p.shiny)+'"/>'+
+        '<img class="party-sprite'+(p.shiny?' sg':'')+'" src="'+pSpriteUrl(p)+'" alt="'+p.name+'" onerror="'+pSpriteOnerror(p)+'"/>'+
         '<div class="party-pname">'+p.name+'</div>'+
         '<div class="party-lvl">Lv.'+lvl+'</div>'+
         '<div class="party-hp"><div class="party-hp-fill" style="width:100%"></div></div>'+
@@ -10676,7 +11483,7 @@ function renderPokeInfoPages(){
       '<div class="pi-sprite-card">'+p.name.toUpperCase()+(p.shiny?' ✨':'')+gmaxBadge+'<div class="pi-lv">Lv'+lvl+'</div></div>'+
       (megaEntry
         ? '<img class="pi-sprite-img" src="" alt="'+p.name+'"/>'
-        : '<img class="pi-sprite-img" src="'+spriteUrl(p.id,p.shiny)+'" alt="'+p.name+'" onerror="'+spriteOnerror(p.id,p.shiny)+'"/>')+
+        : '<img class="pi-sprite-img" src="'+pSpriteUrl(p)+'" alt="'+p.name+'" onerror="'+pSpriteOnerror(p)+'"/>')+
     '</div>';
 
   // Evolution is only offered outside of an active battle (evolving mid-battle
@@ -10693,7 +11500,7 @@ function renderPokeInfoPages(){
       '<div class="pi-sprite-card">'+p.name.toUpperCase()+(p.shiny?' ✨':'')+gmaxBadge+'<div class="pi-lv">Lv'+lvl+'</div></div>'+
       (megaEntry
         ? '<img class="pi-sprite-img" src="" alt="'+p.name+'"/>'
-        : '<img class="pi-sprite-img" src="'+spriteUrl(p.id,p.shiny)+'" alt="'+p.name+'" onerror="'+spriteOnerror(p.id,p.shiny)+'"/>')+
+        : '<img class="pi-sprite-img" src="'+pSpriteUrl(p)+'" alt="'+p.name+'" onerror="'+pSpriteOnerror(p)+'"/>')+
       evolveBtnHtml+
     '</div>';
 
@@ -11122,6 +11929,25 @@ function giveTestMoney(){
   save();
   renderPokedollarDisplay();
   showShopToast("Added ₱999,999! Balance: ₱"+pokedollars.toLocaleString());
+}
+
+// Testing button: a cosmetic Ash's-cap Pikachu with a guaranteed S rank in every
+// stat — isStarter grants that automatically (the same mechanic real starters use),
+// and capPikachu swaps its sprite to the cap art in the party list, Summary page,
+// and Pokédex (it still shows as a normal Pikachu in battle/raids).
+function giveAshCapPikachu(){
+  var entry = {
+    id: 25, name: "Ash's Pikachu",
+    shiny: false, legendary: false,
+    xp: 0, uid: Date.now()+Math.floor(Math.random()*99999), ts: Date.now(),
+    isStarter: true, capPikachu: true,
+  };
+  caught.push(entry);
+  save();
+  refreshDexStats();
+  renderDex();
+  renderParty();
+  showShopToast("🧢 Ash's Pikachu joined your Pokédex with S-rank stats!");
 }
 
 function openShop(){
@@ -16182,6 +17008,23 @@ initAuth();
     var authHidden = !auth || getComputedStyle(auth).display === 'none';
     var bootGone = !boot || boot.style.display === 'none';
     if(authHidden && bootGone){ clearInterval(iv); openJoinRaid(code); }
+    if(tries > 600) clearInterval(iv);
+  }, 1000);
+})();
+
+// Opened via a friend's PvP invite link (?pvp=CODE): once logged in, offer to join.
+(function(){
+  var code = null;
+  try{ code = new URLSearchParams(location.search).get('pvp'); }catch(e){}
+  if(!code) return;
+  var tries = 0;
+  var iv = setInterval(function(){
+    tries++;
+    var auth = document.getElementById('auth-overlay');
+    var boot = document.getElementById('boot-overlay');
+    var authHidden = !auth || getComputedStyle(auth).display === 'none';
+    var bootGone = !boot || boot.style.display === 'none';
+    if(authHidden && bootGone){ clearInterval(iv); openPvpLobby(); pvpJoinOpen(code); }
     if(tries > 600) clearInterval(iv);
   }, 1000);
 })();
